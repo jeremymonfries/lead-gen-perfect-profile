@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth';
 import { createLeadAction } from '../actions';
 import { LEAD_TYPES, SOURCES, SIGNAL_TYPES, label } from '@/components/format';
@@ -11,11 +12,28 @@ function F({ name, children, type = 'text', required, defaultValue }: { name: st
   );
 }
 
-export default async function NewLeadPage() {
-  await requireUser();
+export default function NewLeadPage() {
   return (
     <div className="max-w-3xl space-y-4">
       <h1 className="text-xl font-semibold">New lead</h1>
+      <Suspense fallback={<FormSkeleton />}>
+        <NewLeadForm />
+      </Suspense>
+    </div>
+  );
+}
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading form">
+      {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-28 animate-pulse bg-gray-100" />)}
+    </div>
+  );
+}
+
+async function NewLeadForm() {
+  await requireUser();
+  return (
       <form action={createLeadAction} className="space-y-4">
         <section className="card grid gap-3 sm:grid-cols-3">
           <div className="sm:col-span-3"><F name="title" required>Title (e.g. “Acme Pty Ltd — new Melbourne office”)</F></div>
@@ -60,6 +78,5 @@ export default async function NewLeadPage() {
         </section>
         <button type="submit" className="btn btn-primary">Create lead</button>
       </form>
-    </div>
   );
 }

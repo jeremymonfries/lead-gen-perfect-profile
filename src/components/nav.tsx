@@ -3,9 +3,9 @@ import Link from 'next/link';
 export function Nav() {
   return (
     <header className="border-b border-[var(--line)] bg-white">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2">
-        <Link href="/leads" className="font-semibold">Perfect Profile Prospecting</Link>
-        <nav className="flex flex-1 flex-wrap items-center gap-4 text-sm">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+        <Link href="/leads" className="mr-auto font-semibold sm:mr-0">Perfect Profile Prospecting</Link>
+        <nav className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:order-none sm:w-auto sm:flex-1">
           <Link href="/leads" className="link">Leads</Link>
           <Link href="/leads/new" className="link">New lead</Link>
           <Link href="/settings" className="link">Settings</Link>

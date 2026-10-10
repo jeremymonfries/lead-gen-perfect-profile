@@ -13,7 +13,7 @@ const sig = (o: Partial<Signal> = {}): Signal & { contribution: number | null } 
 });
 const lead = (o: Partial<Lead> = {}): Lead => ({
   id: 'l', owner_id: 'u', company_id: null, contact_id: null, lead_type: 'corporate', source: 'other', status: 'new', title: 't', notes: null,
-  est_headcount: null, est_locations: null, est_value_low: null, est_value_high: null, assumptions: null, exception_reason: null,
+  est_headcount: null, est_locations: null, est_value_low: null, est_value_high: null, value_is_manual: false, assumptions: null, exception_reason: null,
   commercial_state: 'needs_research', score: null, score_breakdown: null, recommended_service: null, next_action: null, actual_revenue: null,
   created_at: '', updated_at: '', ...o,
 });

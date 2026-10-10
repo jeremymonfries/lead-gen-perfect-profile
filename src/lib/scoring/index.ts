@@ -131,3 +131,45 @@ export function scoreBand(total: number, settings: Settings): 'high' | 'review' 
   if (total >= b.research) return 'research';
   return 'ignore';
 }
+
+const SERVICE_IDS = {
+  individual: 'individual-headshot-linkedin',
+  executive: 'executive-board-portraits',
+  onsite: 'onsite-staff-photography',
+  team: 'corporate-team-headshots',
+} as const;
+
+/** Rule-based service recommendation (first match wins). Returns a catalogue name, or null if no rule/catalogue entry applies. */
+export function recommendService(
+  lead: Pick<Lead, 'lead_type' | 'est_locations'>,
+  signals: Pick<Signal, 'signal_type'>[],
+  settings: Settings,
+): { service: string | null; reason: string } {
+  const types = new Set(signals.map((s) => s.signal_type));
+  const pick = (id: string, reason: string) => {
+    const entry = settings.service_catalogue.find((c) => c.id === id);
+    return entry ? { service: entry.name, reason } : { service: null, reason: `${reason} (service "${id}" is missing from the catalogue)` };
+  };
+
+  if (lead.lead_type === 'individual' || types.has('business_launch')) {
+    return pick(SERVICE_IDS.individual, lead.lead_type === 'individual' ? 'Individual lead: headshot with LinkedIn optimisation.' : 'Business launch signal: headshot with LinkedIn optimisation.');
+  }
+  if (lead.lead_type === 'executive' || types.has('exec_appointment')) {
+    return pick(SERVICE_IDS.executive, lead.lead_type === 'executive' ? 'Executive lead: executive and board portraits.' : 'Executive appointment signal: executive and board portraits.');
+  }
+  if (lead.est_locations != null && lead.est_locations > 1) {
+    return pick(SERVICE_IDS.onsite, `Multi-location (${lead.est_locations} locations): on-site staff photography; photographer capacity must be validated before proposing.`);
+  }
+  if (types.has('rebrand')) {
+    return pick(SERVICE_IDS.team, 'Rebrand signal: corporate team headshots; possible brand photography upsell.');
+  }
+  const teamSignals: SignalType[] = ['hiring', 'onboarding', 'graduate_intake', 'new_office', 'merger', 'team_page'];
+  const matched = teamSignals.find((t) => types.has(t));
+  if (matched) {
+    return pick(SERVICE_IDS.team, `${matched.replace('_', ' ')} signal: team likely needs new headshots.`);
+  }
+  if (lead.lead_type === 'corporate' && signals.length === 0) {
+    return pick(SERVICE_IDS.team, 'Corporate lead with no signals: default to corporate team headshots.');
+  }
+  return { service: null, reason: 'No service rule matched.' };
+}

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
 import { SIGNAL_TYPES, label } from '@/components/format';
@@ -10,13 +11,38 @@ const Num = ({ name, children, value, step }: { name: string; children: string; 
   </div>
 );
 
-export default async function SettingsPage() {
-  await requireUser();
-  const s = await getSettings();
-  const svc = [...s.service_catalogue, { id: '', name: '', description: '' }, { id: '', name: '', description: '' }];
+export default function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   return (
     <div className="max-w-3xl space-y-4">
       <h1 className="text-xl font-semibold">Settings</h1>
+      <Suspense fallback={<SettingsSkeleton />}>
+        <SettingsContent searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
+
+function SettingsSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading settings">
+      {Array.from({ length: 5 }, (_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+    </div>
+  );
+}
+
+async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+  await requireUser();
+  const { saved } = await searchParams;
+  const savedCount = saved !== undefined && /^\d+$/.test(saved) ? Number(saved) : null;
+  const s = await getSettings();
+  const svc = [...s.service_catalogue, { id: '', name: '', description: '' }, { id: '', name: '', description: '' }];
+  return (
+    <div className="space-y-4">
+      {savedCount !== null && (
+        <div role="status" className="rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
+          Saved — {savedCount} {savedCount === 1 ? 'lead' : 'leads'} rescored
+        </div>
+      )}
       {s.price_per_head == null && (
         <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Pricing is unconfirmed (price per head is blank). Lead values use the headcount proxy below; unknown values are never invented.

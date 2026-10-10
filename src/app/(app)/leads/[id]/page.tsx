@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
@@ -16,7 +17,34 @@ const Field = ({ name, children, defaultValue, type = 'text', step }: { name: st
   </div>
 );
 
-export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
+export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <div className="space-y-4">
+      <Link href="/leads" className="link text-xs">← Leads</Link>
+      <Suspense fallback={<LeadSkeleton />}>
+        <LeadContent params={params} />
+      </Suspense>
+    </div>
+  );
+}
+
+function LeadSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading lead">
+      <div className="h-7 w-64 animate-pulse rounded bg-gray-200" />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-gray-100" />)}
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-gray-100" />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
   await requireUser();
   const { id } = await params;
   const [lead, settings] = await Promise.all([getLead(id), getSettings()]);
@@ -34,7 +62,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const known: [string, boolean][] = [
     ['Headcount', lead.est_headcount != null],
     ['Estimated value', lead.est_value_low != null || lead.est_value_high != null],
-    ['Contact', !!lead.contact && !!(lead.contact.email || lead.contact.linkedin_url)],
+    ['Contact details (email or LinkedIn)', !!lead.contact && !!(lead.contact.email || lead.contact.linkedin_url)],
     ['Signal date', signals.some((s) => !!s.published_at)],
   ];
 
@@ -42,7 +70,6 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
     <div className="space-y-4">
       {dnc && <div className="rounded border border-red-300 bg-red-50 px-3 py-2 font-semibold text-red-800">DO NOT CONTACT — this contact is flagged. Do not send outreach.</div>}
       <div>
-        <Link href="/leads" className="link text-xs">← Leads</Link>
         <h1 className="text-xl font-semibold">{lead.title}</h1>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <StatusBadge status={lead.status} /><StateBadge state={lead.commercial_state} />

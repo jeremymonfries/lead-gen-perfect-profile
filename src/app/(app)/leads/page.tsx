@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { listLeads, getSettings } from '@/lib/db';
@@ -10,7 +11,33 @@ type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
 const MAX_ROWS = 100;
 
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<SP> }) {
+export default function LeadsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Leads</h1>
+        <Link href="/leads/new" className="btn btn-primary">New lead</Link>
+      </div>
+      <Suspense fallback={<LeadsSkeleton />}>
+        <LeadsContent searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
+
+function LeadsSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading leads">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-gray-100" />)}
+      </div>
+      <div className="card h-24 animate-pulse bg-gray-100" />
+      <div className="card h-64 animate-pulse bg-gray-100" />
+    </div>
+  );
+}
+
+async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
   await requireUser();
   const sp = await searchParams;
   const minScore = one(sp.min_score);
@@ -40,11 +67,6 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Leads</h1>
-        <Link href="/leads/new" className="btn btn-primary">New lead</Link>
-      </div>
-
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="card"><div className="text-xs text-gray-500">Priority queue (qualified + strategic exception)</div><div className="text-2xl font-semibold">{prioritised}</div></div>
         <div className="card"><div className="text-xs text-gray-500">Awaiting review (status new)</div><div className="text-2xl font-semibold">{awaiting}</div></div>

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { getLead, getSettings, createLead as dbCreateLead, updateLead, logActivity } from '@/lib/db';
-import { estimateValue, commercialGate, scoreLead } from '@/lib/scoring';
+import { estimateValue, commercialGate, scoreLead, recommendService } from '@/lib/scoring';
 import type { LeadSource, LeadStatus, LeadType, SignalType } from '@/lib/types';
 
 const str = (fd: FormData, k: string): string | undefined => {
@@ -21,21 +21,28 @@ const num = (fd: FormData, k: string): number | undefined => {
 };
 
 /** Recompute value estimate (unless manual override), commercial state and score. */
+/** manualValue: true/false forces the mode; undefined keeps whatever the lead already has (lead.value_is_manual). */
 export async function recompute(leadId: string, opts: { manualValue?: boolean } = {}) {
   await requireUser();
   const [lead, settings] = await Promise.all([getLead(leadId), getSettings()]);
   if (!lead) throw new Error('Lead not found');
   let { est_value_low: low, est_value_high: high, assumptions } = lead;
-  if (!opts.manualValue) {
+  const manual = opts.manualValue ?? lead.value_is_manual;
+  if (!manual) {
     const est = estimateValue(lead, settings);
     low = est.low; high = est.high; assumptions = est.assumptions;
-  } else {
+  } else if (opts.manualValue) {
     assumptions = 'Manual value override entered by user.';
   }
   const merged = { ...lead, est_value_low: low, est_value_high: high, assumptions };
   const commercial_state = commercialGate(merged, settings);
   const breakdown = scoreLead({ ...merged, commercial_state }, lead.signals, settings);
-  await updateLead(leadId, { est_value_low: low, est_value_high: high, assumptions, commercial_state, score: breakdown.total, score_breakdown: breakdown });
+  const patch: Parameters<typeof updateLead>[1] = { est_value_low: low, est_value_high: high, assumptions, value_is_manual: manual, commercial_state, score: breakdown.total, score_breakdown: breakdown };
+  if (!lead.recommended_service?.trim()) {
+    const rec = recommendService(lead, lead.signals, settings);
+    if (rec.service) patch.recommended_service = rec.service;
+  }
+  await updateLead(leadId, patch);
 }
 
 export async function createLeadAction(formData: FormData) {
@@ -68,7 +75,6 @@ export async function changeStatus(formData: FormData) {
   const lead = await getLead(id);
   if (!lead || lead.status === status) return;
   await updateLead(id, { status });
-  await logActivity(id, 'status_changed', `${lead.status} → ${status}`, { from: lead.status, to: status });
   revalidatePath(`/leads/${id}`); revalidatePath('/leads');
 }
 

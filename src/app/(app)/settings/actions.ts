@@ -1,8 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { getSettings, updateSettings } from '@/lib/db';
+import { getSettings, updateSettings, listLeads } from '@/lib/db';
+import { recompute } from '../leads/actions';
 import type { Settings } from '@/lib/types';
 import { SIGNAL_TYPES } from '@/components/format';
 
@@ -41,6 +43,10 @@ export async function updateSettingsAction(formData: FormData) {
     approved_claims: String(formData.get('approved_claims') ?? '').split('\n').map((s) => s.trim()).filter(Boolean),
     service_catalogue,
   });
+  // Rescore every lead against the new settings; manual value overrides are preserved by recompute.
+  const leads = await listLeads();
+  for (const l of leads) await recompute(l.id);
   revalidatePath('/settings');
   revalidatePath('/leads');
+  redirect(`/settings?saved=${leads.length}`);
 }
