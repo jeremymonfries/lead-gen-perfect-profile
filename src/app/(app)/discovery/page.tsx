@@ -4,8 +4,9 @@ import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
 import { candidateCounts, hasActiveRun, latestRun, listCandidates } from '@/lib/db/discovery';
 import type { CandidateStatus, LocationMatch } from '@/lib/types';
+import { buyerRoles, linkedInPeopleSearchUrl } from '@/lib/discovery/buyer-roles';
 import { fmtDate, fmtDateTime, label } from '@/components/format';
-import { acceptCandidate, rejectCandidate, restoreCandidate, runDiscoveryAction, saveDiscoveryQueries } from './actions';
+import { acceptCandidate, rejectCandidate, restoreCandidate, runDiscoveryAction, saveDiscoveryFeeds, saveDiscoveryKeywords, saveDiscoveryQueries } from './actions';
 import { RunButton } from './run-button';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -33,7 +34,7 @@ export default function DiscoveryPage({ searchParams }: { searchParams: Promise<
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Discovery</h1>
-        <p className="text-sm text-gray-600">News search finds candidate leads; Claude filters them. Nothing is contacted — you accept or reject each.</p>
+        <p className="text-sm text-gray-600">Feeds and news search find candidate leads; Claude filters them and names the people involved. Nothing is contacted — you accept or reject each.</p>
       </div>
       <Suspense fallback={<DiscoverySkeleton />}>
         <DiscoveryContent searchParams={searchParams} />
@@ -63,27 +64,31 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
   const [settings, run, active, counts, candidates] = await Promise.all([
     getSettings(), latestRun(), hasActiveRun(), candidateCounts(), listCandidates(tab.id),
   ]);
-  const missing = [!process.env.BRAVE_SEARCH_API_KEY && 'BRAVE_SEARCH_API_KEY', !process.env.ANTHROPIC_API_KEY && 'ANTHROPIC_API_KEY'].filter(Boolean) as string[];
+  const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+  const hasBrave = Boolean(process.env.BRAVE_SEARCH_API_KEY);
+  const canRun = hasAnthropic && (settings.discovery_feeds.length > 0 || hasBrave);
   const decided = counts.accepted + counts.rejected;
   const rate = decided > 0 ? `${Math.round((counts.accepted / decided) * 100)}%` : '—';
 
   return (
     <div className="space-y-4">
-      {missing.length > 0 && (
+      {!hasAnthropic && (
         <div className="card border-amber-300 bg-amber-50 text-sm text-amber-900">
-          Missing {missing.join(' and ')}. Add {missing.length > 1 ? 'them' : 'it'} to .env.local and restart the server to enable discovery.
+          Missing ANTHROPIC_API_KEY. Add it to .env.local and restart the server to enable discovery.
         </div>
       )}
+      {!hasBrave && <p className="text-xs text-gray-500">News search is off (no Brave key) — feeds only.</p>}
 
       <div className="card space-y-2">
         <form action={runDiscoveryAction} className="flex flex-wrap items-center gap-3">
-          <RunButton disabled={missing.length > 0 || active} />
+          <RunButton disabled={!canRun || active} />
           {active && <span className="text-sm text-gray-600">A run is already in progress.</span>}
+          {hasAnthropic && !hasBrave && settings.discovery_feeds.length === 0 && <span className="text-sm text-gray-600">Add at least one feed to run discovery.</span>}
         </form>
         {run ? (
           <div className="text-sm text-gray-700">
             <div>
-              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.queries.length, 'query', 'queries')} · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')}
+              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')}
             </div>
             {run.errors.length > 0 && (
               <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
@@ -124,7 +129,10 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                 </div>
               </div>
               <div className="text-xs text-gray-500">
-                {[c.publisher, fmtDate(c.published_at), c.query].filter((x) => x && x !== '—').join(' · ')}
+                {[c.publisher, fmtDate(c.published_at)].filter((x) => x && x !== '—').join(' · ')}
+                {c.query && (
+                  <span className="badge ml-1 bg-gray-100 text-gray-700">{c.origin_type === 'rss' ? `RSS: ${c.query}` : `Search: ${c.query}`}</span>
+                )}
               </div>
               {(c.company_name || c.est_headcount != null) && (
                 <div className="text-sm">
@@ -135,6 +143,27 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                 </div>
               )}
               <p className="text-sm">{c.summary}</p>
+              {c.people.length > 0 && (
+                <div className="text-sm">
+                  <div className="text-xs font-medium text-gray-500">People named</div>
+                  <ul className="space-y-0.5">
+                    {c.people.map((p, i) => (
+                      <li key={i} className="flex flex-wrap items-center gap-x-2">
+                        <span>{p.name}{p.title ? ` — ${p.title}` : ''} ({label(p.role)})</span>
+                        <a href={linkedInPeopleSearchUrl(c.company_name ?? '', p.name)} target="_blank" rel="noopener noreferrer" className="link text-xs">Search LinkedIn</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {c.company_name && (
+                <div className="flex flex-wrap items-center gap-1 text-xs">
+                  <span className="text-gray-500">Who to look for:</span>
+                  {buyerRoles(c.signal_type, { companyName: c.company_name }).map((role) => (
+                    <a key={role} href={linkedInPeopleSearchUrl(c.company_name as string, role)} target="_blank" rel="noopener noreferrer" className="badge bg-gray-100 text-gray-800">{role}</a>
+                  ))}
+                </div>
+              )}
               {c.rationale && <p className="text-xs text-gray-500">{c.rationale}</p>}
               {c.status === 'rejected' && c.reject_reason && <p className="text-xs text-gray-600">Rejected: {c.reject_reason}</p>}
 
@@ -174,10 +203,28 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
       )}
 
       <details className="card">
+        <summary className="cursor-pointer text-sm font-medium">Feeds ({settings.discovery_feeds.length})</summary>
+        <form action={saveDiscoveryFeeds} className="mt-3 space-y-2">
+          <textarea name="feeds" rows={8} defaultValue={settings.discovery_feeds.map((f) => `${f.name} | ${f.url}`).join('\n')} className="input w-full font-mono text-xs" aria-label="Feeds, one per line as Name | URL" />
+          <p className="text-xs text-gray-500">One per line: Name | https://url (or just a URL; max 30). Checked every run. Free.</p>
+          <button type="submit" className="btn btn-primary">Save feeds</button>
+        </form>
+      </details>
+
+      <details className="card">
+        <summary className="cursor-pointer text-sm font-medium">Feed keywords ({settings.discovery_keywords.length})</summary>
+        <form action={saveDiscoveryKeywords} className="mt-3 space-y-2">
+          <textarea name="keywords" rows={6} defaultValue={settings.discovery_keywords.join('\n')} className="input w-full font-mono text-xs" aria-label="Feed keywords, one per line" />
+          <p className="text-xs text-gray-500">One per line or comma-separated (max 60). Feed items must contain one of these words before Claude reads them — keeps cost down.</p>
+          <button type="submit" className="btn btn-primary">Save keywords</button>
+        </form>
+      </details>
+
+      <details className="card">
         <summary className="cursor-pointer text-sm font-medium">Search queries ({settings.discovery_queries.length})</summary>
         <form action={saveDiscoveryQueries} className="mt-3 space-y-2">
           <textarea name="queries" rows={8} defaultValue={settings.discovery_queries.join('\n')} className="input w-full font-mono text-xs" aria-label="Search queries, one per line" />
-          <p className="text-xs text-gray-500">One query per line (max 20). Each query costs one Brave search request per run.</p>
+          <p className="text-xs text-gray-500">One query per line (max 20). Only used when a Brave key is set. Each query costs one search request.</p>
           <button type="submit" className="btn btn-primary">Save queries</button>
         </form>
       </details>

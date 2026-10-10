@@ -9,6 +9,11 @@ function fail(context: string, error: { message: string }): never {
   throw new Error(`${context}: ${error.message}`);
 }
 
+function toCandidate(row: Row): DiscoveryCandidate {
+  const c = strip<DiscoveryCandidate>(row);
+  return { ...c, people: Array.isArray(c.people) ? c.people : [] };
+}
+
 function strip<T>(row: Row): T {
   const copy = { ...row };
   delete copy.owner_id;
@@ -53,6 +58,9 @@ export function createDiscoveryStore(): DiscoveryStore {
         candidates_created: result.candidates_created,
         search_requests: result.search_requests,
         llm_calls: result.llm_calls,
+        feeds_checked: result.feeds_checked,
+        feed_items: result.feed_items,
+        prefiltered_out: result.prefiltered_out,
         errors: result.errors,
       }).eq('id', id);
       if (error) fail('finishRun', error);
@@ -84,7 +92,7 @@ export async function listCandidates(status: CandidateStatus, limit = 100): Prom
     : q.order('reviewed_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
   const { data, error } = await q.limit(limit);
   if (error) fail('listCandidates', error);
-  return (data ?? []).map((r) => strip<DiscoveryCandidate>(r as Row));
+  return (data ?? []).map((r) => toCandidate(r as Row));
 }
 
 export async function candidateCounts(): Promise<Record<CandidateStatus, number>> {
@@ -107,7 +115,7 @@ export async function claimCandidate(id: string, from: CandidateStatus[], to: Ca
     reject_reason: to === 'rejected' ? extra.reject_reason ?? null : null,
   }).eq('id', id).in('status', from).select('*').maybeSingle();
   if (error) fail('claimCandidate', error);
-  return data ? strip<DiscoveryCandidate>(data as Row) : null;
+  return data ? toCandidate(data as Row) : null;
 }
 
 export async function setCandidateLead(id: string, leadId: string): Promise<void> {

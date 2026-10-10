@@ -25,10 +25,15 @@ export interface Settings {
   freshness_days: Record<SignalType, number>;
   service_catalogue: { id: string; name: string; description: string }[];
   approved_claims: string[];
-  discovery_queries: string[];     // news search queries for discovery runs
+  discovery_queries: string[];     // news search queries (Brave; only used when a key is set)
+  discovery_feeds: { name: string; url: string }[]; // RSS/Atom feeds checked on every run
+  discovery_keywords: string[];    // feed items must match one of these before Claude sees them
 }
 export interface LeadWithRelations extends Lead { company: Company | null; contact: Contact | null; signals: (Signal & { contribution: number | null })[]; }
 export type LocationMatch = 'melbourne' | 'australia_other' | 'outside_australia' | 'unknown';
 export type CandidateStatus = 'pending' | 'accepted' | 'rejected' | 'filtered';
-export interface DiscoveryRun { id: string; source: string; status: 'running' | 'completed' | 'failed'; started_at: string; finished_at: string | null; queries: string[]; results_found: number; candidates_created: number; search_requests: number; llm_calls: number; errors: string[]; }
-export interface DiscoveryCandidate { id: string; run_id: string | null; url: string; url_key: string; headline: string; snippet: string | null; publisher: string | null; published_at: string | null; query: string | null; signal_type: SignalType | null; company_name: string | null; company_domain: string | null; city: string | null; state: string | null; location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: CandidateStatus; reject_reason: string | null; lead_id: string | null; reviewed_at: string | null; created_at: string; }
+export type OriginType = 'search' | 'rss';
+export type PersonRole = 'appointee' | 'new_partner' | 'departing' | 'spokesperson' | 'other';
+export interface CandidatePerson { name: string; title: string | null; role: PersonRole; }
+export interface DiscoveryRun { id: string; source: string; status: 'running' | 'completed' | 'failed'; started_at: string; finished_at: string | null; queries: string[]; results_found: number; candidates_created: number; search_requests: number; llm_calls: number; feeds_checked: number; feed_items: number; prefiltered_out: number; errors: string[]; }
+export interface DiscoveryCandidate { id: string; run_id: string | null; url: string; url_key: string; headline: string; snippet: string | null; publisher: string | null; published_at: string | null; query: string | null; origin_type: OriginType; people: CandidatePerson[]; signal_type: SignalType | null; company_name: string | null; company_domain: string | null; city: string | null; state: string | null; location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: CandidateStatus; reject_reason: string | null; lead_id: string | null; reviewed_at: string | null; created_at: string; }

@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runDiscovery, type DiscoveryStore, type NewCandidate, type RunResult } from '../run';
+import { runDiscovery, type RunDeps, type DiscoveryStore, type NewCandidate, type RunResult } from '../run';
 import type { NewsItem, NewsSearchProvider } from '../news';
+import type { FeedProvider } from '../rss';
 import type { LLMProvider } from '@/lib/llm/provider';
 
+const run = (d: Partial<RunDeps> & Pick<RunDeps, 'llm' | 'store' | 'queries'>) => runDiscovery({ feeds: [], keywords: [], ...d });
 const news = (url: string, title = url): NewsItem => ({ url, title, description: 'snip', publisher: 'p.com', publishedAt: null, extraSnippets: [] });
 const cls = (index: number, relevant: boolean) => ({
-  index, relevant, signal_type: relevant ? 'hiring' : null, company_name: relevant ? 'Acme' : null, company_domain: null, city: null, state: null,
+  index, relevant, people: [{ name: ' Jo Bloggs ', title: 'Partner', role: 'new_partner' }, { name: 'jo bloggs', title: null, role: 'other' }],
+  signal_type: relevant ? 'hiring' : null, company_name: relevant ? 'Acme' : null, company_domain: null, city: null, state: null,
   location_match: 'unknown', est_headcount: null, summary: relevant ? 'Acme hires.' : 'Nothing.', rationale: 'why',
 });
 
@@ -33,7 +36,7 @@ const llmAll = (relevantIdx: number[]): LLMProvider => ({
 describe('runDiscovery', () => {
   it('throws before starting when no queries', async () => {
     const { store } = mkStore();
-    await expect(runDiscovery({ search: search({}), llm: llmAll([]), store, queries: ['  ', ''] })).rejects.toThrow('No discovery queries configured');
+    await expect(run({ search: search({}), llm: llmAll([]), store, queries: ['  ', ''] })).rejects.toThrow('Nothing to run: add feeds, or a Brave key and queries');
     expect(store.startRun).not.toHaveBeenCalled();
   });
 
@@ -43,7 +46,7 @@ describe('runDiscovery', () => {
       q1: [news('https://www.a.com/x?utm_source=1'), news('https://b.com/y'), news('https://c.com/known')],
       q2: [news('https://a.com/x/'), news('https://d.com/z')],
     });
-    const r = await runDiscovery({ search: s, llm: llmAll([0]), store, queries: ['q1', 'q2', 'q1'] });
+    const r = await run({ search: s, llm: llmAll([0]), store, queries: ['q1', 'q2', 'q1'] });
     expect(r).toMatchObject({ status: 'completed', runId: 'run1', results_found: 3, candidates_created: 1, search_requests: 2, llm_calls: 1, errors: [] });
     expect(inserted.map((c) => c.url_key)).toEqual(['a.com/x', 'b.com/y', 'd.com/z']);
     expect(inserted.map((c) => c.status)).toEqual(['pending', 'filtered', 'filtered']);
@@ -54,7 +57,7 @@ describe('runDiscovery', () => {
 
   it('continues after a search error and records it', async () => {
     const { store, inserted } = mkStore();
-    const r = await runDiscovery({ search: search({ bad: new Error('boom'), good: [news('https://a.com/1')] }), llm: llmAll([0]), store, queries: ['bad', 'good'] });
+    const r = await run({ search: search({ bad: new Error('boom'), good: [news('https://a.com/1')] }), llm: llmAll([0]), store, queries: ['bad', 'good'] });
     expect(r.status).toBe('completed');
     expect(r.errors).toEqual(['Search "bad": boom']);
     expect(inserted).toHaveLength(1);
@@ -62,7 +65,7 @@ describe('runDiscovery', () => {
 
   it('is failed when every search fails, and still finishes the run', async () => {
     const { store, finished } = mkStore();
-    const r = await runDiscovery({ search: search({ a: new Error('x'), b: new Error('y') }), llm: llmAll([]), store, queries: ['a', 'b'] });
+    const r = await run({ search: search({ a: new Error('x'), b: new Error('y') }), llm: llmAll([]), store, queries: ['a', 'b'] });
     expect(r).toMatchObject({ status: 'failed', search_requests: 2, results_found: 0, llm_calls: 0 });
     expect(store.insertCandidates).not.toHaveBeenCalled();
     expect(finished[0].r.status).toBe('failed');
@@ -78,7 +81,7 @@ describe('runDiscovery', () => {
       const idxs = [...req.user.matchAll(/^\[(\d+)\]/gm)].map((m) => Number(m[1]));
       return { items: idxs.map((i) => cls(i, true)) };
     }) };
-    const r = await runDiscovery({ search: search({ q: items }), llm, store, queries: ['q'], batchSize: 2 });
+    const r = await run({ search: search({ q: items }), llm, store, queries: ['q'], batchSize: 2 });
     expect(r).toMatchObject({ results_found: 4, llm_calls: 2, candidates_created: 2, status: 'completed' });
     expect(r.errors).toEqual(['Classify batch 1: llm down']);
     expect(inserted.map((c) => c.url_key)).toEqual(['a.com/3', 'a.com/4']);
@@ -87,7 +90,7 @@ describe('runDiscovery', () => {
   it('caps new items and notes it', async () => {
     const { store, inserted } = mkStore();
     const items = Array.from({ length: 5 }, (_, i) => news(`https://a.com/${i}`));
-    const r = await runDiscovery({ search: search({ q: items }), llm: llmAll([]), store, queries: ['q'], maxNewItems: 3 });
+    const r = await run({ search: search({ q: items }), llm: llmAll([]), store, queries: ['q'], maxNewItems: 3 });
     expect(r.results_found).toBe(3);
     expect(r.errors).toContain('Capped at 3 new results');
     expect(inserted).toHaveLength(3);
@@ -96,7 +99,7 @@ describe('runDiscovery', () => {
   it('always calls finishRun with failed status on unexpected errors', async () => {
     const { store, finished } = mkStore();
     (store.knownUrlKeys as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('db down'));
-    const r = await runDiscovery({ search: search({ q: [news('https://a.com/1')] }), llm: llmAll([0]), store, queries: ['q'] });
+    const r = await run({ search: search({ q: [news('https://a.com/1')] }), llm: llmAll([0]), store, queries: ['q'] });
     expect(r.status).toBe('failed');
     expect(r.errors).toContain('db down');
     expect(finished).toHaveLength(1);
@@ -106,7 +109,65 @@ describe('runDiscovery', () => {
   it('falls back to headline when summary is empty', async () => {
     const { store, inserted } = mkStore();
     const llm: LLMProvider = { complete: vi.fn(async () => ({ items: [{ ...cls(0, true), summary: '' }] })) };
-    await runDiscovery({ search: search({ q: [news('https://a.com/1', 'Headline')] }), llm, store, queries: ['q'] });
+    await run({ search: search({ q: [news('https://a.com/1', 'Headline')] }), llm, store, queries: ['q'] });
     expect(inserted[0].summary).toBe('Headline');
+  });
+});
+
+const NOW = new Date('2026-10-10T00:00:00.000Z');
+const feedItem = (url: string, title: string, publishedAt: string | null = '2026-10-08T00:00:00.000Z'): NewsItem => ({ url, title, description: null, publisher: 'f.com', publishedAt, extraSnippets: [] });
+const feedProv = (map: Record<string, NewsItem[] | Error>): FeedProvider => ({
+  fetchFeed: vi.fn(async (u: string) => { const v = map[u]; if (v instanceof Error) throw v; return v ?? []; }),
+});
+
+describe('runDiscovery with feeds', () => {
+  it('runs feeds only, filters by keywords and age, keeps undated, records people and origin', async () => {
+    const { store, inserted } = mkStore();
+    const fp = feedProv({ 'https://f.com/rss': [
+      feedItem('https://f.com/1', 'Acme appoints new partner'),
+      feedItem('https://f.com/2', 'Weather today'),
+      feedItem('https://f.com/3', 'Old appoints news', '2026-08-01T00:00:00.000Z'),
+      feedItem('https://f.com/4', 'Undated appoints item', null),
+    ] });
+    const r = await runDiscovery({ llm: llmAll([0]), store, queries: ['ignored'], feeds: [{ name: 'F', url: 'https://f.com/rss' }, { name: 'dup', url: 'https://f.com/rss' }, { name: 'bad', url: 'ftp://x' }], feedProvider: fp, keywords: ['APPOINTS'], now: () => NOW });
+    expect(r).toMatchObject({ status: 'completed', feeds_checked: 1, feed_items: 3, prefiltered_out: 1, search_requests: 0, results_found: 2, candidates_created: 1 });
+    expect(store.startRun).toHaveBeenCalledWith(['feed: F']);
+    expect(inserted.map((c) => c.url_key)).toEqual(['f.com/1', 'f.com/4']);
+    expect(inserted[0]).toMatchObject({ query: 'F', origin_type: 'rss', people: [{ name: 'Jo Bloggs', title: 'Partner', role: 'new_partner' }] });
+    expect(inserted[1].status).toBe('filtered');
+    expect(inserted[1].people).toHaveLength(1);
+  });
+
+  it('records feed errors and continues; failed only if every source fails', async () => {
+    const { store } = mkStore();
+    const fp = feedProv({ 'https://a.com/rss': new Error('Feed error 500'), 'https://b.com/rss': [feedItem('https://b.com/1', 'x')] });
+    const feeds = [{ name: 'A', url: 'https://a.com/rss' }, { name: 'B', url: 'https://b.com/rss' }];
+    const ok = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds, feedProvider: fp, keywords: [], now: () => NOW });
+    expect(ok.status).toBe('completed');
+    expect(ok.errors).toEqual(['Feed "A": Feed error 500']);
+    const bad = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds: [feeds[0]], feedProvider: fp, keywords: [] });
+    expect(bad.status).toBe('failed');
+    const mixed = await runDiscovery({ llm: llmAll([]), store, queries: ['q'], search: search({ q: new Error('no') }), feeds: [feeds[0]], feedProvider: fp, keywords: [] });
+    expect(mixed).toMatchObject({ status: 'failed', feeds_checked: 1, search_requests: 1 });
+    const part = await runDiscovery({ llm: llmAll([]), store, queries: ['q'], search: search({ q: [news('https://z.com/1')] }), feeds: [feeds[0]], feedProvider: fp, keywords: [] });
+    expect(part.status).toBe('completed');
+  });
+
+  it('throws when feeds are given without a provider and no search', async () => {
+    const { store } = mkStore();
+    await expect(runDiscovery({ llm: llmAll([]), store, queries: ['q'], feeds: [{ name: 'A', url: 'https://a.com/rss' }], keywords: [] })).rejects.toThrow('Nothing to run');
+    expect(store.startRun).not.toHaveBeenCalled();
+  });
+
+  it('dedupes across feeds and searches (feed wins) and tags origins', async () => {
+    const { store, inserted } = mkStore();
+    const fp = feedProv({ 'https://f.com/rss': [feedItem('https://a.com/x', 'Feed copy')] });
+    const r = await runDiscovery({
+      llm: llmAll([]), store, queries: ['q'], search: search({ q: [news('https://www.a.com/x/'), news('https://b.com/y')] }),
+      feeds: [{ name: 'F', url: 'https://f.com/rss' }], feedProvider: fp, keywords: [], now: () => NOW,
+    });
+    expect(r.results_found).toBe(2);
+    expect(store.startRun).toHaveBeenCalledWith(['q', 'feed: F']);
+    expect(inserted.map((c) => [c.url_key, c.origin_type, c.query])).toEqual([['a.com/x', 'rss', 'F'], ['b.com/y', 'search', 'q']]);
   });
 });

@@ -7,6 +7,7 @@ import { estimateValue, scoreBand } from '@/lib/scoring';
 import { StateBadge, BandBadge, StatusBadge } from '@/components/badges';
 import { DraftGenerator } from '@/components/draft-generator';
 import { STATUSES, fmtAUD, fmtDate, fmtDateTime, fmtRange, label } from '@/components/format';
+import { PeopleSection } from './people-section';
 import { addNote, changeStatus, recordOutcome, saveEstimates } from '../actions';
 
 const Hidden = ({ id }: { id: string }) => <input type="hidden" name="lead_id" value={id} />;
@@ -16,6 +17,8 @@ const Field = ({ name, children, defaultValue, type = 'text', step }: { name: st
     <input id={name} name={name} type={type} step={step} defaultValue={defaultValue ?? ''} className="input" />
   </div>
 );
+
+export const maxDuration = 120;
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -114,6 +117,8 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </div>
           </section>
+
+          <PeopleSection lead={lead} />
 
           <section className="card">
             <h2>Evidence &amp; signals</h2>

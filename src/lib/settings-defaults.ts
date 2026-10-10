@@ -44,4 +44,18 @@ export const DEFAULT_SETTINGS: Settings = {
     'Melbourne graduate program intake',
     'Melbourne firms merger',
   ],
+  // Feeds verified working on 10 Oct 2026; chosen for named people moves and openings.
+  discovery_feeds: [
+    { name: 'Campaign Brief', url: 'https://www.campaignbrief.com/feed/' },
+    { name: 'Financial Newswire', url: 'https://www.financialnewswire.com.au/feed/' },
+    { name: 'Government News', url: 'https://www.governmentnews.com.au/feed/' },
+    { name: 'Mediaweek', url: 'https://www.mediaweek.com.au/feed/' },
+    { name: 'realcommercial.com.au news', url: 'https://www.realcommercial.com.au/news/feed' },
+    { name: 'Inside Retail', url: 'https://insideretail.com.au/feed' },
+  ],
+  discovery_keywords: [
+    'appoint', 'joins', 'joined', 'hires', 'hired', 'promot', 'partner', 'ceo', 'chief', 'director', 'managing', 'head of',
+    'steps up', 'steps down', 'leaves', 'named', 'new office', 'relocat', 'moves to', 'headquarters', 'opens', 'opening',
+    'rebrand', 'expand', 'expansion', 'hiring', 'graduate', 'merger', 'merge', 'acquires', 'acquisition', 'launch', 'lease',
+  ],
 };

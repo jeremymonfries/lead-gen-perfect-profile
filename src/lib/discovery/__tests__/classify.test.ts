@@ -8,7 +8,7 @@ const inputs: ClassifyInput[] = [
 ];
 const item = (o: Record<string, unknown> = {}) => ({
   index: 0, relevant: true, signal_type: 'new_office', company_name: 'Acme', company_domain: 'https://www.Acme.com.au/about', city: 'Melbourne', state: 'VIC',
-  location_match: 'melbourne', est_headcount: 40, summary: 'Acme opened an office.', rationale: 'New office.', ...o,
+  location_match: 'melbourne', est_headcount: 40, summary: 'Acme opened an office.', rationale: 'New office.', people: [], ...o,
 });
 const prov = (...outs: unknown[]): LLMProvider & { complete: ReturnType<typeof vi.fn> } => {
   const complete = vi.fn();
@@ -23,7 +23,7 @@ describe('classifyBatch', () => {
     expect(m.get(0)).toMatchObject({ relevant: true, signal_type: 'new_office', company_domain: 'acme.com.au', est_headcount: 40 });
     expect(m.get(1)).toMatchObject({ relevant: false, signal_type: null });
     const req = p.complete.mock.calls[0][0];
-    expect(req.maxTokens).toBe(300 * 2 + 500);
+    expect(req.maxTokens).toBe(400 * 2 + 500);
     expect(req.user).toContain('[0] Acme opens new Melbourne office | afr.com | 2026-10-01T00:00:00.000Z | https://afr.com/a');
     expect(req.user).toContain('Acme hires 40');
   });
@@ -60,18 +60,39 @@ describe('classifyBatch', () => {
   });
 });
 
+describe('people', () => {
+  it('cleans, dedupes, defaults roles, and caps at 10', async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ name: `P${i}`, title: null, role: 'other' }));
+    const m = await classifyBatch(inputs, prov({ items: [
+      item({ people: [{ name: ' Ann Lee ', title: ' Partner ', role: 'new_partner' }, { name: 'ann lee', title: 'x', role: 'other' }, { name: '  ', title: null, role: 'other' }, { name: 'Bo', title: '  ', role: 'weird' }, { title: 'no name' }] }),
+      item({ index: 1, people: many }),
+    ] }));
+    expect(m.get(0)!.people).toEqual([{ name: 'Ann Lee', title: 'Partner', role: 'new_partner' }, { name: 'Bo', title: null, role: 'other' }]);
+    expect(m.get(1)!.people).toHaveLength(10);
+  });
+  it('defaults to no people when omitted', async () => {
+    const { people: _p, ...noPeople } = item();
+    void _p;
+    const m = await classifyBatch(inputs, prov({ items: [noPeople] }));
+    expect(m.get(0)!.people).toEqual([]);
+  });
+});
+
 describe('prompt and schema', () => {
   it('states the evidence-only rule', () => {
     const s = buildClassifySystemPrompt();
     expect(s).toContain('EVIDENCE ONLY');
     expect(s).toContain('Perfect Profile');
     expect(s).toContain('melbourne');
+    expect(s).toContain('appointee');
   });
   it('is strict: all properties required, no additional properties', () => {
     const it = CLASSIFY_JSON_SCHEMA.properties.items.items;
     expect(CLASSIFY_JSON_SCHEMA.additionalProperties).toBe(false);
     expect(it.additionalProperties).toBe(false);
     expect([...it.required].sort()).toEqual(Object.keys(it.properties).sort());
+    expect(it.properties.people.items.required).toEqual(['name', 'title', 'role']);
+    expect(it.properties.people.items.additionalProperties).toBe(false);
     expect(it.properties.signal_type.anyOf[0]).toMatchObject({ enum: expect.arrayContaining(['tender', 'other']) });
   });
 });

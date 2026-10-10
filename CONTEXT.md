@@ -37,12 +37,12 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   score breakdown, value estimate + assumptions, known/unknown, activity timeline,
   status/estimates/notes/won-lost), settings page.
 - Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 98 unit tests in total (`npm run test`).
+- 120 unit tests in total (`npm run test`).
 - Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
 - Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
   **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
 - Migrations: `20261010000000_init.sql`, `20261010000100_lead_value_is_manual.sql`,
-  `20261011000000_news_discovery.sql` (all applied to the local DB).
+  `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql` (all applied to the local DB).
 - Not built yet: **outcomes report** (SPEC §8 step 5: leads by source, conversion, actual vs estimate).
 
 ## Running locally
@@ -58,25 +58,42 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   `export const maxDuration` on a page is accepted with Cache Components (used on `/discovery`).
 - Port 3000 was taken by another process on 10 Oct, so the preview used an auto-assigned port.
 
-## News discovery (built 10 Oct 2026, not yet run against real APIs)
+## Discovery: RSS feeds + optional news search (built 10 Oct 2026; not yet run with a real Claude key)
 ASX automation was dropped: its terms (updated 25 May 2026) prohibit automated access without written
 consent (ComNews licence is ~A$1,180/month). The public announcements page
 (asx.com.au/markets/trade-our-cash-market/announcements) may be read **manually** and leads logged by hand;
-the tool must not fetch or scrape it. Optional later: ask ASX Information Services for consent.
-Replaced by **news search discovery** at `/discovery`:
-- Brave Search News API (`BRAVE_SEARCH_API_KEY`) runs the queries in Settings `discovery_queries`
-  (editable on the Discovery page). Claude (`src/lib/discovery/classify.ts`) classifies each result
-  from title/snippet only; relevant ones go to a review queue, the rest are kept as `filtered` so a URL is never paid for twice.
-- Accept → creates a lead (source `news`) with the signal + source URL, then rescored. Reject/restore supported.
-- Manual "Run discovery now" button only (no cron yet). Migration: `20261011000000_news_discovery.sql`.
-- Code: `src/lib/discovery/*` (pure, 31 tests), `src/lib/db/discovery.ts`, `src/app/(app)/discovery/*`.
-- To check before relying on it: Brave's terms on storing results (stored rows include headline/snippet/URL);
-  Brave now needs a card even for the ~US$5/month free credit — set a spend cap in its dashboard.
-- Judge the experiment on acceptance rate (shown on the page) and meetings from `news` leads.
-- Default queries are hypotheses (incl. law/accounting partner promotions); refine after real runs.
+the tool must not fetch or scrape it.
+
+`/discovery` (manual "Run discovery now"; no cron yet):
+- **RSS feeds (main, free)** — Settings `discovery_feeds`, editable on the page. Defaults verified working 10 Oct:
+  Campaign Brief, Financial Newswire, Government News, Mediaweek, realcommercial.com.au news, Inside Retail
+  (114 recent items → 40 pass the keyword filter → ~3 Claude calls/run). Items must match `discovery_keywords`
+  before Claude reads them. Not usable: Lawyers Weekly / Accountants Daily (no feed); Business News Australia,
+  HRM, Inside HR, Vic Tenders (Cloudflare — never bypass). The Age / ABC skipped (personal-use feed terms likely).
+- **Brave news search (optional)** — only runs when `BRAVE_SEARCH_API_KEY` is set; covers gaps like partner
+  promotions and office moves. Check Brave's terms on storing results; set a spend cap.
+- Claude (`classify.ts`) classifies from title/snippet only and lists **people named** (appointee / new partner /
+  departing / spokesperson). Irrelevant items kept as `filtered` so a URL is never paid for twice.
+- Accept → lead (source `news`) + named people saved as unverified contacts; appointee/new partner (else
+  spokesperson) becomes primary contact; departing people never primary.
+
+## People finding
+- Lead page "People to contact": buyer roles per signal (`src/lib/discovery/buyer-roles.ts`, hypotheses) with
+  LinkedIn people-search links (open in the user's browser; tool never fetches LinkedIn), people on file with
+  "Set as primary", manual "Add a person".
+- "Find people on website" (`src/lib/discovery/website.ts`): on demand per lead; reads the company's public
+  team/about pages (max 4), respects robots.txt, same-site redirects only, refuses IP literals/local hosts and
+  domains resolving to private IPs; Claude extracts names + titles only (no emails/phones), saved unverified.
+- Spam Act still applies when the user emails people manually (business address published + role-relevant =
+  inferred consent; bought lists riskier). Paid contact data (Apollo/Hunter) deliberately not built.
+
+Code: `src/lib/discovery/*` (pure, tested), `src/lib/db/{discovery,contacts}.ts`, `src/app/(app)/discovery/*`,
+`src/app/(app)/leads/people-actions.ts`, `src/app/(app)/leads/[id]/people-section.tsx`.
+Migrations: `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql`.
 
 ## Suggested next steps
-1. Add API keys and do a real discovery run; tune queries and the classifier prompt from results.
+1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds work without Brave); tune feeds, keywords and the
+   classifier prompt from results; try the website lookup on a few accepted leads.
 2. Test outreach drafts against the real Claude API.
 3. Outcomes report (SPEC §8 step 5).
 4. Optional: "ASX announcement" quick-capture shortcut for manually spotted appointments.

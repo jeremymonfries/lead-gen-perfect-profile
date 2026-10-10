@@ -1,16 +1,18 @@
 import { z } from 'zod';
 import type { LLMProvider } from '@/lib/llm/provider';
-import type { LocationMatch, SignalType } from '@/lib/types';
+import type { CandidatePerson, LocationMatch, PersonRole, SignalType } from '@/lib/types';
 import { cleanDomain } from './url';
 
 export interface ClassifyInput { index: number; title: string; description: string | null; publisher: string | null; publishedAt: string | null; url: string; }
 export interface Classification {
   index: number; relevant: boolean; signal_type: SignalType | null; company_name: string | null; company_domain: string | null;
-  city: string | null; state: string | null; location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string;
+  city: string | null; state: string | null; location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string; people: CandidatePerson[];
 }
 
 const SIGNAL_TYPES = ['tender', 'rebrand', 'new_office', 'hiring', 'exec_appointment', 'merger', 'graduate_intake', 'onboarding', 'event', 'business_launch', 'team_page', 'other'] as const;
 const LOCATION_MATCHES = ['melbourne', 'australia_other', 'outside_australia', 'unknown'] as const;
+
+const PERSON_ROLES = ['appointee', 'new_partner', 'departing', 'spokesperson', 'other'] as const satisfies readonly PersonRole[];
 
 const nullable = (type: string) => ({ anyOf: [{ type }, { type: 'null' }] });
 
@@ -33,8 +35,17 @@ export const CLASSIFY_JSON_SCHEMA = {
           est_headcount: nullable('integer'),
           summary: { type: 'string' },
           rationale: { type: 'string' },
+          people: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { name: { type: 'string' }, title: nullable('string'), role: { type: 'string', enum: [...PERSON_ROLES] } },
+              required: ['name', 'title', 'role'],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ['index', 'relevant', 'signal_type', 'company_name', 'company_domain', 'city', 'state', 'location_match', 'est_headcount', 'summary', 'rationale'],
+        required: ['index', 'relevant', 'signal_type', 'company_name', 'company_domain', 'city', 'state', 'location_match', 'est_headcount', 'summary', 'rationale', 'people'],
         additionalProperties: false,
       },
     },
@@ -56,6 +67,9 @@ EVIDENCE ONLY: use only facts stated in the title and snippet. company_name, com
 
 location_match: "melbourne" only if Melbourne or the Victorian metro area is stated; "australia_other" if elsewhere in Australia; "outside_australia" if overseas; otherwise "unknown". The focus is Melbourne, but keep relevant Australia-wide organisations (they may have Melbourne staff) and set location_match honestly.
 
+people: list every person NAMED in the title or snippet, with the title exactly as stated (null unless stated) and their role in the story: appointee = newly appointed or joining; new_partner = promoted or admitted to partnership; departing = leaving; spokesperson = quoted or announcing; other. Never invent names or titles. Empty array if no one is named.
+People-move stories (someone joins, is appointed or is promoted at a named organisation) ARE relevant signals (exec_appointment, or hiring when several hires) even when the article is short; the organisation is the one they are joining. A departure alone is relevant only if it implies a replacement or appointment at a named organisation.
+
 signal_type: choose the closest type, or null if not relevant.
 summary: one plain factual sentence (35 words or fewer) describing the signal.
 rationale: 25 words or fewer on why it is or is not a lead.
@@ -76,8 +90,26 @@ const RawItem = z.object({
   est_headcount: z.number().nullish(),
   summary: z.string().default(''),
   rationale: z.string().default(''),
+  people: z.array(z.unknown()).nullish(),
 });
+const RawPerson = z.object({ name: z.string(), title: z.string().nullish(), role: z.enum(PERSON_ROLES).catch('other') });
 const RawOutput = z.object({ items: z.array(z.unknown()) });
+
+function cleanPeople(raw: unknown[] | null | undefined): CandidatePerson[] {
+  const seen = new Set<string>();
+  const out: CandidatePerson[] = [];
+  for (const x of raw ?? []) {
+    const p = RawPerson.safeParse(x);
+    if (!p.success) continue;
+    const name = p.data.name.trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, title: p.data.title?.trim() || null, role: p.data.role });
+    if (out.length >= 10) break;
+  }
+  return out;
+}
 
 function coerce(r: z.infer<typeof RawItem>): Classification {
   let relevant = r.relevant;
@@ -99,6 +131,7 @@ function coerce(r: z.infer<typeof RawItem>): Classification {
     est_headcount: typeof hc === 'number' && Number.isInteger(hc) && hc > 0 ? hc : null,
     summary: r.summary.trim().slice(0, 400),
     rationale,
+    people: cleanPeople(r.people),
   };
 }
 
@@ -123,7 +156,7 @@ export async function classifyBatch(items: ClassifyInput[], provider: LLMProvide
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const raw = await provider.complete({ system, user, jsonSchema: CLASSIFY_JSON_SCHEMA as unknown as Record<string, unknown>, maxTokens: 300 * items.length + 500 });
+      const raw = await provider.complete({ system, user, jsonSchema: CLASSIFY_JSON_SCHEMA as unknown as Record<string, unknown>, maxTokens: 400 * items.length + 500 });
       return parseOutput(raw, valid);
     } catch (e) {
       lastErr = e;

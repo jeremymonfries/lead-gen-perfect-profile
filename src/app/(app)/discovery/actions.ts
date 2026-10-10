@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth';
 import { createLead, getSettings, updateSettings } from '@/lib/db';
 import { claimCandidate, createDiscoveryStore, getCandidateLeadId, hasActiveRun, setCandidateLead } from '@/lib/db/discovery';
+import { addContacts, listCompanyContacts, setLeadContact } from '@/lib/db/contacts';
 import { BraveNewsProvider } from '@/lib/discovery/news';
+import { RssFeedProvider } from '@/lib/discovery/rss';
 import { runDiscovery } from '@/lib/discovery/run';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
 import { label } from '@/components/format';
@@ -17,13 +19,24 @@ const str = (fd: FormData, k: string): string | undefined => {
 
 export async function runDiscoveryAction() {
   await requireUser();
-  const key = process.env.BRAVE_SEARCH_API_KEY;
-  if (!key || !process.env.ANTHROPIC_API_KEY) return;
+  if (!process.env.ANTHROPIC_API_KEY) return;
   if (await hasActiveRun()) return;
-  const { discovery_queries: queries } = await getSettings();
-  if (!queries.some((q) => q.trim())) return;
-  // Search and classification errors are recorded on the run rather than thrown.
-  await runDiscovery({ search: new BraveNewsProvider(key), llm: getDefaultProvider(), store: createDiscoveryStore(), queries });
+  const settings = await getSettings();
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  const search = braveKey ? new BraveNewsProvider(braveKey) : undefined;
+  const queries = settings.discovery_queries;
+  const feeds = settings.discovery_feeds;
+  if (feeds.length === 0 && !search) return;
+  // Feed, search and classification errors are recorded on the run rather than thrown.
+  await runDiscovery({
+    llm: getDefaultProvider(),
+    store: createDiscoveryStore(),
+    queries,
+    search,
+    feeds,
+    feedProvider: new RssFeedProvider(),
+    keywords: settings.discovery_keywords,
+  });
   revalidatePath('/discovery');
 }
 
@@ -35,17 +48,36 @@ export async function acceptCandidate(formData: FormData) {
   if (!c) return;
   try {
     const signalType = c.signal_type ?? 'other';
+    const people = c.people ?? [];
+    const found = c.origin_type === 'rss' ? `RSS feed${c.query ? ` (${c.query})` : ''}` : `news search${c.query ? ` (query: "${c.query}")` : ''}`;
+    let notes = `Found by ${found}. ${c.rationale ?? ''}`.trim();
+    if (people.length && !c.company_name) {
+      notes += ` People named: ${people.map((p) => (p.title ? `${p.name} (${p.title})` : p.name)).join(', ')}.`;
+    }
     const lead = await createLead({
       title: `${c.company_name ?? c.headline}: ${label(signalType)}`.slice(0, 120),
       lead_type: c.signal_type === 'exec_appointment' ? 'executive' : 'corporate',
       source: 'news',
-      notes: `Found by news search${c.query ? ` (query: "${c.query}")` : ''}. ${c.rationale ?? ''}`.trim(),
+      notes,
       company: c.company_name ? { name: c.company_name, domain: c.company_domain ?? undefined, city: c.city ?? undefined, state: c.state ?? undefined } : undefined,
       est_headcount: c.est_headcount ?? undefined,
       signal: { signal_type: signalType, summary: c.summary, source_url: c.url, published_at: c.published_at ?? undefined },
     });
     // Link first so a failed rescore can't lead to a duplicate lead on retry.
     await setCandidateLead(id, lead.id);
+    if (people.length && lead.company_id) {
+      await addContacts(lead.company_id, people.map((p) => ({
+        name: p.name,
+        title: p.title,
+        source_note: `Named in article (${p.role.replace('_', ' ')}): ${c.url}`,
+      })));
+      // Departing people are never the primary contact.
+      const primary = people.find((p) => p.role === 'appointee' || p.role === 'new_partner') ?? people.find((p) => p.role === 'spokesperson');
+      if (primary) {
+        const match = (await listCompanyContacts(lead.company_id)).find((x) => x.name.toLowerCase() === primary.name.trim().toLowerCase());
+        if (match) await setLeadContact(lead.id, match.id);
+      }
+    }
     await recompute(lead.id);
   } catch (e) {
     if (!(await getCandidateLeadId(id))) await claimCandidate(id, ['accepted'], 'pending');
@@ -76,5 +108,38 @@ export async function saveDiscoveryQueries(formData: FormData) {
   const raw = String(formData.get('queries') ?? '');
   const discovery_queries = [...new Set(raw.split('\n').map((s) => s.trim()).filter(Boolean))].slice(0, 20);
   await updateSettings({ discovery_queries });
+  revalidatePath('/discovery');
+}
+
+function parseFeeds(raw: string): { name: string; url: string }[] {
+  const seen = new Set<string>();
+  const out: { name: string; url: string }[] = [];
+  for (const line of raw.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    const bar = t.indexOf('|');
+    const namePart = bar >= 0 ? t.slice(0, bar).trim() : '';
+    const urlPart = (bar >= 0 ? t.slice(bar + 1) : t).trim();
+    let u: URL;
+    try { u = new URL(urlPart); } catch { continue; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+    if (seen.has(u.href)) continue;
+    seen.add(u.href);
+    out.push({ name: namePart || u.hostname.replace(/^www\./, ''), url: u.href });
+  }
+  return out.slice(0, 30);
+}
+
+export async function saveDiscoveryFeeds(formData: FormData) {
+  await requireUser();
+  await updateSettings({ discovery_feeds: parseFeeds(String(formData.get('feeds') ?? '')) });
+  revalidatePath('/discovery');
+}
+
+export async function saveDiscoveryKeywords(formData: FormData) {
+  await requireUser();
+  const raw = String(formData.get('keywords') ?? '');
+  const discovery_keywords = [...new Set(raw.split(/[\n,]/).map((s) => s.trim().toLowerCase()).filter(Boolean))].slice(0, 60);
+  await updateSettings({ discovery_keywords });
   revalidatePath('/discovery');
 }
