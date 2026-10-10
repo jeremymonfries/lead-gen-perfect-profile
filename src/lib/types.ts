@@ -1,5 +1,5 @@
 export type LeadType = 'corporate' | 'executive' | 'individual';
-export type LeadSource = 'linkedin' | 'referral' | 'website' | 'asx' | 'other';
+export type LeadSource = 'linkedin' | 'referral' | 'website' | 'asx' | 'news' | 'other';
 export type LeadStatus = 'new' | 'researching' | 'contacted' | 'meeting' | 'proposal' | 'won' | 'lost' | 'nurture' | 'dismissed';
 export type CommercialState = 'qualified' | 'strategic_exception' | 'below_threshold' | 'needs_research';
 export type SignalType = 'tender' | 'rebrand' | 'new_office' | 'hiring' | 'exec_appointment' | 'merger' | 'graduate_intake' | 'onboarding' | 'event' | 'business_launch' | 'team_page' | 'other';
@@ -25,5 +25,10 @@ export interface Settings {
   freshness_days: Record<SignalType, number>;
   service_catalogue: { id: string; name: string; description: string }[];
   approved_claims: string[];
+  discovery_queries: string[];     // news search queries for discovery runs
 }
 export interface LeadWithRelations extends Lead { company: Company | null; contact: Contact | null; signals: (Signal & { contribution: number | null })[]; }
+export type LocationMatch = 'melbourne' | 'australia_other' | 'outside_australia' | 'unknown';
+export type CandidateStatus = 'pending' | 'accepted' | 'rejected' | 'filtered';
+export interface DiscoveryRun { id: string; source: string; status: 'running' | 'completed' | 'failed'; started_at: string; finished_at: string | null; queries: string[]; results_found: number; candidates_created: number; search_requests: number; llm_calls: number; errors: string[]; }
+export interface DiscoveryCandidate { id: string; run_id: string | null; url: string; url_key: string; headline: string; snippet: string | null; publisher: string | null; published_at: string | null; query: string | null; signal_type: SignalType | null; company_name: string | null; company_domain: string | null; city: string | null; state: string | null; location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: CandidateStatus; reject_reason: string | null; lead_id: string | null; reviewed_at: string | null; created_at: string; }

@@ -2,7 +2,7 @@ import type { SignalType } from '@/lib/types';
 
 export const SIGNAL_TYPES: SignalType[] = ['tender', 'rebrand', 'new_office', 'hiring', 'exec_appointment', 'merger', 'graduate_intake', 'onboarding', 'event', 'business_launch', 'team_page', 'other'];
 export const STATUSES = ['new', 'researching', 'contacted', 'meeting', 'proposal', 'won', 'lost', 'nurture', 'dismissed'] as const;
-export const SOURCES = ['linkedin', 'referral', 'website', 'asx', 'other'] as const;
+export const SOURCES = ['linkedin', 'referral', 'website', 'asx', 'news', 'other'] as const;
 export const LEAD_TYPES = ['corporate', 'executive', 'individual'] as const;
 export const COMMERCIAL_STATES = ['qualified', 'strategic_exception', 'below_threshold', 'needs_research'] as const;
 

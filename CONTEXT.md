@@ -45,17 +45,18 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
 - Next 16 notes: per-user pages stream behind `<Suspense>`; `requireUser()` calls
   `connection()`; session refresh lives in `src/proxy.ts`; `/` → `/leads` redirect is in `next.config.ts`.
 
-## Where we stopped — automated lead discovery
-Nothing finds leads automatically yet. The plan was an **ASX announcements** experiment, but
-ASX's terms of use (updated 25 May 2026) **prohibit automated access and commercial use of
-Market Announcements without ASX's written consent**. It was not built.
-
-**Decision pending from the user:**
-1. News search API first (recommended: e.g. Brave Search; covers private companies;
-   finds new offices, rebrands, hiring, exec appointments). Claude filters results into a
-   review queue — nothing is contacted automatically.
-2. Ask ASX Information Services for written consent (offer to draft the email).
-3. Both.
+## News discovery (built 10 Oct 2026, not yet run against real APIs)
+ASX was dropped: its terms (updated 25 May 2026) prohibit automated access without written consent.
+Replaced by **news search discovery** at `/discovery`:
+- Brave Search News API (`BRAVE_SEARCH_API_KEY`) runs the queries in Settings `discovery_queries`
+  (editable on the Discovery page). Claude (`src/lib/discovery/classify.ts`) classifies each result
+  from title/snippet only; relevant ones go to a review queue, the rest are kept as `filtered` so a URL is never paid for twice.
+- Accept → creates a lead (source `news`) with the signal + source URL, then rescored. Reject/restore supported.
+- Manual "Run discovery now" button only (no cron yet). Migration: `20261011000000_news_discovery.sql`.
+- Code: `src/lib/discovery/*` (pure, 31 tests), `src/lib/db/discovery.ts`, `src/app/(app)/discovery/*`.
+- To check before relying on it: Brave's terms on storing results (stored rows include headline/snippet/URL);
+  Brave now needs a card even for the ~US$5/month free credit — set a spend cap in its dashboard.
+- Judge the experiment on acceptance rate (shown on the page) and meetings from `news` leads.
 
 ## Other open items
 - Confirm pricing (rough per-head figure) and headcount placeholders (15 / 10).

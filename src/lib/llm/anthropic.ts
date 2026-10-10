@@ -23,8 +23,8 @@ export class AnthropicProvider implements LLMProvider {
       },
     });
 
-    if (res.stop_reason === 'refusal') throw new Error('Model declined to generate a draft');
-    if (res.stop_reason === 'max_tokens') throw new Error('Draft was truncated (max_tokens)');
+    if (res.stop_reason === 'refusal') throw new Error('Model declined the request');
+    if (res.stop_reason === 'max_tokens') throw new Error('Model output was truncated (max_tokens)');
     const text = res.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)

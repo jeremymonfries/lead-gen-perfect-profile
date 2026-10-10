@@ -8,6 +8,7 @@ export function Nav() {
         <nav className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:order-none sm:w-auto sm:flex-1">
           <Link href="/leads" className="link">Leads</Link>
           <Link href="/leads/new" className="link">New lead</Link>
+          <Link href="/discovery" className="link">Discovery</Link>
           <Link href="/settings" className="link">Settings</Link>
         </nav>
         <form action="/auth/signout" method="post">

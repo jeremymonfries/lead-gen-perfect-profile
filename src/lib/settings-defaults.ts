@@ -31,4 +31,17 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'individual-headshot-linkedin', name: 'Individual headshot + LinkedIn optimisation', description: 'Single professional headshot with LinkedIn profile optimisation.' },
   ],
   approved_claims: [],
+  // Starting hypotheses for Melbourne buying signals; edit on the Discovery page.
+  discovery_queries: [
+    'Melbourne new office opening',
+    'Melbourne headquarters relocation',
+    'Melbourne company rebrand',
+    'appointed chief executive Melbourne',
+    'board appointment Melbourne company',
+    'Melbourne law firm new partners',
+    'Melbourne accounting firm partner promotions',
+    'Melbourne company expansion hiring',
+    'Melbourne graduate program intake',
+    'Melbourne firms merger',
+  ],
 };
