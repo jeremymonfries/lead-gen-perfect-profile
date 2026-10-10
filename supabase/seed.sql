@@ -1,0 +1,1 @@
+-- No seed data: rows are owner-scoped and created through the app after sign-up.
