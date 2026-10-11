@@ -3,13 +3,14 @@
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth';
 import { createLead, getSettings, updateSettings } from '@/lib/db';
-import { claimCandidate, createDiscoveryStore, getCandidateLeadId, hasActiveRun, setCandidateLead } from '@/lib/db/discovery';
+import { claimCandidate, createDiscoveryStore, getCandidateLeadId, hasActiveRun, setCandidateLead, setRunCost } from '@/lib/db/discovery';
 import { addContacts, listCompanyContacts, setLeadContact } from '@/lib/db/contacts';
 import { BraveNewsProvider } from '@/lib/discovery/news';
 import { RssFeedProvider } from '@/lib/discovery/rss';
 import { runDiscovery } from '@/lib/discovery/run';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
-import { withModel } from '@/lib/llm/provider';
+import { recordUsage } from '@/lib/db/usage';
+import { withModel, withUsage, type LLMUsage } from '@/lib/llm/provider';
 import { label } from '@/components/format';
 import { recompute } from '../leads/actions';
 
@@ -29,8 +30,9 @@ export async function runDiscoveryAction() {
   const feeds = settings.discovery_feeds;
   if (feeds.length === 0 && !search) return;
   // Feed, search and classification errors are recorded on the run rather than thrown.
-  await runDiscovery({
-    llm: withModel(getDefaultProvider(), settings.llm_models.discovery),
+  const usages: LLMUsage[] = [];
+  const res = await runDiscovery({
+    llm: withUsage(withModel(getDefaultProvider(), settings.llm_models.discovery), (u) => usages.push(u)),
     store: createDiscoveryStore(),
     queries,
     search,
@@ -38,6 +40,12 @@ export async function runDiscoveryAction() {
     feedProvider: new RssFeedProvider(),
     keywords: settings.discovery_keywords,
   });
+  try {
+    const cost = await recordUsage('discovery', res.runId, usages);
+    await setRunCost(res.runId, cost);
+  } catch (e) {
+    console.error('Failed to record discovery usage', e);
+  }
   revalidatePath('/discovery');
 }
 

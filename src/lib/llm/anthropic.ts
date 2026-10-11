@@ -23,6 +23,14 @@ export class AnthropicProvider implements LLMProvider {
       },
     });
 
+    req.onUsage?.({
+      model: res.model ?? model,
+      input_tokens: res.usage?.input_tokens ?? 0,
+      output_tokens: res.usage?.output_tokens ?? 0,
+      cache_read_input_tokens: res.usage?.cache_read_input_tokens ?? 0,
+      cache_creation_input_tokens: res.usage?.cache_creation_input_tokens ?? 0,
+    });
+
     if (res.stop_reason === 'refusal') throw new Error('Model declined the request');
     if (res.stop_reason === 'max_tokens') throw new Error('Model output was truncated (max_tokens)');
     const text = res.content

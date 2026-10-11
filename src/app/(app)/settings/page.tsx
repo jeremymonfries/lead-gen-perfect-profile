@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
 import { SIGNAL_TYPES, label } from '@/components/format';
+import { fmtUsd, monthStartIso, usageSummary } from '@/lib/db/usage';
 import { LLM_MODELS } from '@/lib/llm/models';
 import { updateSettingsAction } from './actions';
 
@@ -35,7 +36,7 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
   await requireUser();
   const { saved } = await searchParams;
   const savedCount = saved !== undefined && /^\d+$/.test(saved) ? Number(saved) : null;
-  const s = await getSettings();
+  const [s, usage] = await Promise.all([getSettings(), usageSummary(monthStartIso())]);
   const svc = [...s.service_catalogue, { id: '', name: '', description: '' }, { id: '', name: '', description: '' }];
   return (
     <div className="space-y-4">
@@ -65,6 +66,9 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
             </select>
           </div>
           <p className="col-span-full text-sm text-gray-600">Discovery runs and website lookups are frequent, so a cheap model is recommended. Set a monthly spend limit in the Anthropic Console too.</p>
+          <p className="col-span-full text-sm font-medium">
+            This month: {fmtUsd(usage.total)} (discovery {fmtUsd(usage.byJob.discovery)}, website lookups {fmtUsd(usage.byJob.website)}, drafts {fmtUsd(usage.byJob.draft)}; {usage.calls} {usage.calls === 1 ? 'call' : 'calls'})
+          </p>
         </section>
         <section className="card grid grid-cols-2 gap-3 sm:grid-cols-4">
           <h2 className="col-span-full">Commercial thresholds (A$)</h2>

@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
+import { fmtUsd, monthStartIso, usageSummary } from '@/lib/db/usage';
 import { candidateCounts, hasActiveRun, latestRun, listCandidates } from '@/lib/db/discovery';
 import type { CandidateStatus, LocationMatch } from '@/lib/types';
 import { buyerRoles, linkedInPeopleSearchUrl } from '@/lib/discovery/buyer-roles';
@@ -61,8 +62,8 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
   const requested = one(sp.status);
   const tab = TABS.find((t) => t.id === requested) ?? TABS[0];
 
-  const [settings, run, active, counts, candidates] = await Promise.all([
-    getSettings(), latestRun(), hasActiveRun(), candidateCounts(), listCandidates(tab.id),
+  const [settings, run, active, counts, candidates, usage] = await Promise.all([
+    getSettings(), latestRun(), hasActiveRun(), candidateCounts(), listCandidates(tab.id), usageSummary(monthStartIso()),
   ]);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
   const hasBrave = Boolean(process.env.BRAVE_SEARCH_API_KEY);
@@ -85,10 +86,11 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
           {active && <span className="text-sm text-gray-600">A run is already in progress.</span>}
           {hasAnthropic && !hasBrave && settings.discovery_feeds.length === 0 && <span className="text-sm text-gray-600">Add at least one feed to run discovery.</span>}
         </form>
+        <p className="text-xs text-gray-500">Claude spend this month: {fmtUsd(usage.total)}</p>
         {run ? (
           <div className="text-sm text-gray-700">
             <div>
-              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')}
+              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.duplicates_merged ?? 0, 'duplicate')} merged · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')} · Claude cost {fmtUsd(Number(run.cost_usd) || 0)}
             </div>
             {run.errors.length > 0 && (
               <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
@@ -114,6 +116,10 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
           </Link>
         ))}
       </nav>
+
+      {tab.id === 'pending' && candidates.length > 0 && (
+        <p className="text-xs text-gray-500">Sorted Melbourne first, then rest of Australia, then location unknown.</p>
+      )}
 
       {candidates.length === 0 ? (
         <div className="card text-center text-gray-600">{tab.empty}</div>
@@ -164,6 +170,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                   ))}
                 </div>
               )}
+              {c.duplicate_of && <p className="text-xs text-gray-500">Merged into an earlier candidate; any new people were added to it.</p>}
               {c.rationale && <p className="text-xs text-gray-500">{c.rationale}</p>}
               {c.status === 'rejected' && c.reject_reason && <p className="text-xs text-gray-600">Rejected: {c.reject_reason}</p>}
 

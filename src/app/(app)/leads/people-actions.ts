@@ -7,7 +7,8 @@ import { addContacts, listCompanyContacts, setLeadContact } from '@/lib/db/conta
 import { buyerRoles } from '@/lib/discovery/buyer-roles';
 import { findPeopleOnWebsite } from '@/lib/discovery/website';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
-import { withModel } from '@/lib/llm/provider';
+import { fmtUsd, recordUsage } from '@/lib/db/usage';
+import { withModel, withUsage, type LLMUsage } from '@/lib/llm/provider';
 import { createClient } from '@/lib/supabase/server';
 
 const str = (fd: FormData, k: string): string | undefined => {
@@ -28,16 +29,24 @@ export async function findPeopleAction(formData: FormData): Promise<void> {
 
   const settings = await getSettings();
   const latest = [...lead.signals].sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))[0];
+  const usages: LLMUsage[] = [];
   const result = await findPeopleOnWebsite(company.domain, {
-    llm: withModel(getDefaultProvider(), settings.llm_models.discovery),
+    llm: withUsage(withModel(getDefaultProvider(), settings.llm_models.discovery), (u) => usages.push(u)),
     preferredRoles: buyerRoles(latest?.signal_type ?? null, { leadType: lead.lead_type, companyName: company.name }),
   });
   const added = await addContacts(
     company.id,
     result.people.map((p) => ({ name: p.name, title: p.title, source_note: `Company website: ${p.page_url}` })),
   );
+  let costNote = '';
+  try {
+    const cost = await recordUsage('website', id, usages);
+    if (usages.length) costNote = ` Cost ≈ ${fmtUsd(cost)}.`;
+  } catch (e) {
+    console.error('Failed to record website usage', e);
+  }
   const errs = result.errors.length ? ` Issues: ${result.errors.slice(0, 3).join('; ')}` : '';
-  await logActivity(id, 'note', `Website lookup: found ${result.people.length} people (${added.length} new) on ${company.domain}.${errs}`);
+  await logActivity(id, 'note', `Website lookup: found ${result.people.length} people (${added.length} new) on ${company.domain}.${errs}${costNote}`);
   revalidatePath(`/leads/${id}`);
 }
 

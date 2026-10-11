@@ -1,5 +1,6 @@
 import type { LLMProvider } from '@/lib/llm/provider';
 import type { CandidatePerson, LocationMatch, OriginType, SignalType } from '@/lib/types';
+import { isSameStory, newPeople } from './dedupe';
 import { classifyBatch, type ClassifyInput } from './classify';
 import type { NewsItem, NewsSearchOptions, NewsSearchProvider } from './news';
 import { matchesKeywords, type FeedProvider, type FeedSource } from './rss';
@@ -10,15 +11,23 @@ export interface NewCandidate {
   origin_type: OriginType; people: CandidatePerson[];
   signal_type: SignalType | null; company_name: string | null; company_domain: string | null; city: string | null; state: string | null;
   location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: 'pending' | 'filtered';
+  duplicate_of?: string | null;
 }
 export interface RunResult {
   status: 'completed' | 'failed'; results_found: number; candidates_created: number; search_requests: number; llm_calls: number;
-  feeds_checked: number; feed_items: number; prefiltered_out: number; errors: string[];
+  feeds_checked: number; feed_items: number; prefiltered_out: number; duplicates_merged: number; errors: string[];
+}
+export interface RecentCandidate {
+  id: string; company_name: string | null; signal_type: SignalType | null; people: CandidatePerson[]; published_at: string | null; status: string;
+  /** Optional, used only to word the duplicate rationale. */
+  query?: string | null; headline?: string;
 }
 export interface DiscoveryStore {
   startRun(queries: string[]): Promise<string>;
   knownUrlKeys(keys: string[]): Promise<Set<string>>;
-  insertCandidates(rows: NewCandidate[]): Promise<void>;
+  insertCandidates(rows: NewCandidate[]): Promise<{ id: string; url_key: string }[]>;
+  recentCandidates(sinceDays: number): Promise<RecentCandidate[]>;
+  mergePeople(id: string, people: CandidatePerson[]): Promise<void>;
   finishRun(id: string, result: RunResult): Promise<void>;
 }
 export interface RunDeps {
@@ -50,7 +59,7 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
   const now = (deps.now ?? (() => new Date()))().getTime();
 
   const runId = await deps.store.startRun([...queries, ...feeds.map((f) => `feed: ${f.name}`)]);
-  const result: RunResult = { status: 'completed', results_found: 0, candidates_created: 0, search_requests: 0, llm_calls: 0, feeds_checked: 0, feed_items: 0, prefiltered_out: 0, errors: [] };
+  const result: RunResult = { status: 'completed', results_found: 0, candidates_created: 0, search_requests: 0, llm_calls: 0, feeds_checked: 0, feed_items: 0, prefiltered_out: 0, duplicates_merged: 0, errors: [] };
   try {
     const found = new Map<string, { item: NewsItem; origin: string; type: OriginType }>();
     let failures = 0;
@@ -119,8 +128,52 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
         result.errors.push(`Classify batch ${n}: ${msg(e)}`);
       }
     }
-    if (rows.length) await deps.store.insertCandidates(rows);
-    result.candidates_created = rows.filter((r) => r.status === 'pending').length;
+    // Merge duplicate stories (same story from different feeds with different URLs).
+    const duplicates: { row: NewCandidate; ofKey: string | null; ofId: string | null }[] = [];
+    const originals: NewCandidate[] = [];
+    if (rows.some((r) => r.status === 'pending')) {
+      let existing: RecentCandidate[] = [];
+      try {
+        existing = await deps.store.recentCandidates(30);
+      } catch (e) {
+        result.errors.push(`Duplicate check against existing candidates failed: ${msg(e)}`);
+      }
+      const existingPeople = new Map<string, CandidatePerson[]>(existing.map((x) => [x.id, x.people]));
+      const keptPending: NewCandidate[] = [];
+      for (const row of rows) {
+        if (row.status !== 'pending') { originals.push(row); continue; }
+        const inRun = keptPending.find((o) => isSameStory(o, row));
+        const prior = inRun ? undefined : existing.find((x) => isSameStory(x, row));
+        if (!inRun && !prior) { keptPending.push(row); originals.push(row); continue; }
+        const where = inRun ? (inRun.query || inRun.headline) : (prior!.query || prior!.headline || 'an earlier candidate');
+        const added = inRun ? newPeople(inRun.people, row.people) : newPeople(existingPeople.get(prior!.id) ?? [], row.people);
+        if (inRun) {
+          inRun.people = [...inRun.people, ...added];
+        } else if (added.length) {
+          try {
+            await deps.store.mergePeople(prior!.id, added);
+            existingPeople.set(prior!.id, [...(existingPeople.get(prior!.id) ?? []), ...added]);
+          } catch (e) {
+            result.errors.push(`Merge people failed: ${msg(e)}`);
+          }
+        }
+        duplicates.push({
+          row: { ...row, status: 'filtered', rationale: `Duplicate story (also in ${where})` },
+          ofKey: inRun ? inRun.url_key : null, ofId: prior ? prior.id : null,
+        });
+      }
+    } else {
+      originals.push(...rows);
+    }
+    const idByKey = new Map<string, string>();
+    if (originals.length) {
+      for (const r of await deps.store.insertCandidates(originals)) idByKey.set(r.url_key, r.id);
+    }
+    if (duplicates.length) {
+      await deps.store.insertCandidates(duplicates.map((d) => ({ ...d.row, duplicate_of: d.ofId ?? (d.ofKey ? idByKey.get(d.ofKey) ?? null : null) })));
+    }
+    result.duplicates_merged = duplicates.length;
+    result.candidates_created = originals.filter((r) => r.status === 'pending').length;
   } catch (e) {
     result.status = 'failed';
     result.errors.push(msg(e));

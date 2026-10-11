@@ -1,27 +1,31 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runDiscovery, type RunDeps, type DiscoveryStore, type NewCandidate, type RunResult } from '../run';
+import { runDiscovery, type RunDeps, type DiscoveryStore, type NewCandidate, type RunResult, type RecentCandidate } from '../run';
 import type { NewsItem, NewsSearchProvider } from '../news';
 import type { FeedProvider } from '../rss';
+import type { CandidatePerson } from '@/lib/types';
 import type { LLMProvider } from '@/lib/llm/provider';
 
 const run = (d: Partial<RunDeps> & Pick<RunDeps, 'llm' | 'store' | 'queries'>) => runDiscovery({ feeds: [], keywords: [], ...d });
 const news = (url: string, title = url): NewsItem => ({ url, title, description: 'snip', publisher: 'p.com', publishedAt: null, extraSnippets: [] });
 const cls = (index: number, relevant: boolean) => ({
-  index, relevant, people: [{ name: ' Jo Bloggs ', title: 'Partner', role: 'new_partner' }, { name: 'jo bloggs', title: null, role: 'other' }],
-  signal_type: relevant ? 'hiring' : null, company_name: relevant ? 'Acme' : null, company_domain: null, city: null, state: null,
+  index, relevant, people: [{ name: index === 0 ? ' Jo Bloggs ' : `Jo Bloggs${index}`, title: 'Partner', role: 'new_partner' }, { name: index === 0 ? 'jo bloggs' : `jo bloggs${index}`, title: null, role: 'other' }],
+  signal_type: relevant ? 'hiring' : null, company_name: relevant ? `Acme${index}` : null, company_domain: null, city: null, state: null,
   location_match: 'unknown', est_headcount: null, summary: relevant ? 'Acme hires.' : 'Nothing.', rationale: 'why',
 });
 
-function mkStore(known: string[] = []) {
+function mkStore(known: string[] = [], recent: RecentCandidate[] = []) {
+  const merged: { id: string; people: CandidatePerson[] }[] = [];
   const inserted: NewCandidate[] = [];
   const finished: { id: string; r: RunResult }[] = [];
   const store: DiscoveryStore = {
     startRun: vi.fn().mockResolvedValue('run1'),
     knownUrlKeys: vi.fn(async (keys: string[]) => new Set(keys.filter((k) => known.includes(k)))),
-    insertCandidates: vi.fn(async (rows: NewCandidate[]) => { inserted.push(...rows); }),
+    insertCandidates: vi.fn(async (rows: NewCandidate[]) => { inserted.push(...rows); return rows.map((r) => ({ id: `id-${r.url_key}`, url_key: r.url_key })); }),
+    recentCandidates: vi.fn(async () => recent),
+    mergePeople: vi.fn(async (id: string, people: CandidatePerson[]) => { merged.push({ id, people }); }),
     finishRun: vi.fn(async (id: string, r: RunResult) => { finished.push({ id, r }); }),
   };
-  return { store, inserted, finished };
+  return { store, inserted, finished, merged };
 }
 const search = (map: Record<string, NewsItem[] | Error>): NewsSearchProvider => ({
   search: vi.fn(async (q: string) => { const v = map[q]; if (v instanceof Error) throw v; return v ?? []; }),
@@ -169,5 +173,46 @@ describe('runDiscovery with feeds', () => {
     expect(r.results_found).toBe(2);
     expect(store.startRun).toHaveBeenCalledWith(['q', 'feed: F']);
     expect(inserted.map((c) => [c.url_key, c.origin_type, c.query])).toEqual([['a.com/x', 'rss', 'F'], ['b.com/y', 'search', 'q']]);
+  });
+});
+
+describe('duplicate stories', () => {
+  const llmSame = (people: CandidatePerson[][]): LLMProvider => ({
+    complete: vi.fn(async (req) => {
+      const idxs = [...req.user.matchAll(/^\[(\d+)\]/gm)].map((m) => Number(m[1]));
+      return { items: idxs.map((i) => ({ ...cls(i, true), company_name: 'WPP', signal_type: 'exec_appointment', people: people[i] ?? [] })) };
+    }),
+  });
+  const p = (name: string): CandidatePerson => ({ name, title: null, role: 'appointee' });
+  const fp = feedProv({
+    'https://a.com/rss': [feedItem('https://a.com/1', 'WPP appoints Tyler')],
+    'https://b.com/rss': [feedItem('https://b.com/1', 'WPP names Tyler CEO')],
+  });
+  const feeds = [{ name: 'A', url: 'https://a.com/rss' }, { name: 'B', url: 'https://b.com/rss' }];
+
+  it('filters an in-run duplicate, links it, and merges people into the original', async () => {
+    const { store, inserted } = mkStore();
+    const r = await runDiscovery({ llm: llmSame([[p('Tyler')], [p('Tyler'), p('Sam')]]), store, queries: [], feeds, feedProvider: fp, keywords: [], now: () => NOW });
+    expect(r).toMatchObject({ candidates_created: 1, duplicates_merged: 1, status: 'completed' });
+    expect(inserted.map((c) => [c.url_key, c.status, c.duplicate_of ?? null])).toEqual([['a.com/1', 'pending', null], ['b.com/1', 'filtered', 'id-a.com/1']]);
+    expect(inserted[0].people.map((x) => x.name)).toEqual(['Tyler', 'Sam']);
+    expect(inserted[1].rationale).toBe('Duplicate story (also in A)');
+  });
+
+  it('links a duplicate of an existing candidate and merges new people via the store', async () => {
+    const recent: RecentCandidate[] = [{ id: 'ex1', company_name: 'WPP Pty Ltd', signal_type: 'exec_appointment', people: [p('Tyler')], published_at: '2026-10-07T00:00:00Z', status: 'accepted', headline: 'Old story' }];
+    const { store, inserted, merged } = mkStore([], recent);
+    const r = await runDiscovery({ llm: llmSame([[p('Tyler'), p('Sam')]]), store, queries: [], feeds: [feeds[0]], feedProvider: fp, keywords: [], now: () => NOW });
+    expect(r).toMatchObject({ candidates_created: 0, duplicates_merged: 1 });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ status: 'filtered', duplicate_of: 'ex1', rationale: 'Duplicate story (also in Old story)' });
+    expect(merged).toEqual([{ id: 'ex1', people: [p('Sam')] }]);
+  });
+
+  it('does not treat irrelevant rows as duplicates', async () => {
+    const { store } = mkStore();
+    const r = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds, feedProvider: fp, keywords: [], now: () => NOW });
+    expect(r.duplicates_merged).toBe(0);
+    expect(store.recentCandidates).not.toHaveBeenCalled();
   });
 });

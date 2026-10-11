@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { getLead, getSettings, logActivity, markDraftCopied, saveDraft } from '@/lib/db';
 import { generateDraft } from '@/lib/llm';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
-import { withModel } from '@/lib/llm/provider';
+import { fmtUsd, recordUsage } from '@/lib/db/usage';
+import { withModel, withUsage, type LLMUsage } from '@/lib/llm/provider';
 
 const PostBody = z.object({ leadId: z.string().min(1), channel: z.enum(['email', 'linkedin']) });
 const PatchBody = z.object({ draftId: z.string().min(1), leadId: z.string().min(1) });
@@ -34,7 +35,17 @@ export async function POST(req: Request) {
     const lead = await getLead(leadId);
     if (!lead) return err('Lead not found', 404);
     const settings = await getSettings();
-    const draft = await generateDraft({ lead, channel, settings }, withModel(getDefaultProvider(), settings.llm_models.drafts));
+    const usages: LLMUsage[] = [];
+    let draft;
+    try {
+      draft = await generateDraft({ lead, channel, settings }, withUsage(withModel(getDefaultProvider(), settings.llm_models.drafts), (u) => usages.push(u)));
+    } catch (e) {
+      // Failed attempts still cost money.
+      await recordUsage('draft', leadId, usages).catch(() => 0);
+      throw e;
+    }
+    let cost = 0;
+    try { cost = await recordUsage('draft', leadId, usages); } catch (e) { console.error('Failed to record draft usage', e); }
     const saved = await saveDraft({
       lead_id: leadId,
       channel,
@@ -42,7 +53,7 @@ export async function POST(req: Request) {
       body: draft.body,
       evidence_refs: draft.evidence_refs,
     });
-    await logActivity(leadId, 'draft_generated', `${channel} draft generated`, { draft_id: saved.id, channel });
+    await logActivity(leadId, 'draft_generated', `${channel} draft generated (cost ≈ ${fmtUsd(cost)})`, { draft_id: saved.id, channel, cost_usd: cost });
     return NextResponse.json(saved);
   } catch (e) {
     return fail(e);

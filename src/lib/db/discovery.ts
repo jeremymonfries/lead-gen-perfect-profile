@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import type { CandidateStatus, DiscoveryCandidate, DiscoveryRun } from '@/lib/types';
+import type { CandidatePerson, CandidateStatus, DiscoveryCandidate, DiscoveryRun } from '@/lib/types';
+import { newPeople } from '@/lib/discovery/dedupe';
 import type { DiscoveryStore, NewCandidate, RunResult } from '@/lib/discovery/run';
 
 type Row = Record<string, unknown>;
@@ -39,15 +40,42 @@ export function createDiscoveryStore(): DiscoveryStore {
       return known;
     },
     async insertCandidates(rows: NewCandidate[]) {
-      if (rows.length === 0) return;
+      if (rows.length === 0) return [];
       const db = await createClient();
       const { data: u, error: uErr } = await db.auth.getUser();
       if (uErr || !u.user) throw new Error('Not authenticated');
       const owner_id = u.user.id;
-      const { error } = await db
+      const { data, error } = await db
         .from('discovery_candidates')
-        .upsert(rows.map((r) => ({ ...r, owner_id })), { onConflict: 'owner_id,url_key', ignoreDuplicates: true });
+        .upsert(rows.map((r) => ({ ...r, owner_id })), { onConflict: 'owner_id,url_key', ignoreDuplicates: true })
+        .select('id,url_key');
       if (error) fail('insertCandidates', error);
+      return (data ?? []).map((r) => ({ id: r.id as string, url_key: r.url_key as string }));
+    },
+    async recentCandidates(sinceDays) {
+      const db = await createClient();
+      const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+      const { data, error } = await db
+        .from('discovery_candidates')
+        .select('id,company_name,signal_type,people,published_at,status,query,headline')
+        .in('status', ['pending', 'accepted'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) fail('recentCandidates', error);
+      return (data ?? []).map((r) => ({ ...(r as Row), people: Array.isArray(r.people) ? r.people : [] })) as Awaited<ReturnType<DiscoveryStore['recentCandidates']>>;
+    },
+    async mergePeople(id, people) {
+      if (people.length === 0) return;
+      const db = await createClient();
+      const { data, error } = await db.from('discovery_candidates').select('people').eq('id', id).maybeSingle();
+      if (error) fail('mergePeople', error);
+      if (!data) return;
+      const current: CandidatePerson[] = Array.isArray(data.people) ? data.people : [];
+      const merged = [...current, ...newPeople(current, people)];
+      if (merged.length === current.length) return;
+      const { error: uErr } = await db.from('discovery_candidates').update({ people: merged }).eq('id', id);
+      if (uErr) fail('mergePeople', uErr);
     },
     async finishRun(id, result: RunResult) {
       const db = await createClient();
@@ -61,6 +89,7 @@ export function createDiscoveryStore(): DiscoveryStore {
         feeds_checked: result.feeds_checked,
         feed_items: result.feed_items,
         prefiltered_out: result.prefiltered_out,
+        duplicates_merged: result.duplicates_merged,
         errors: result.errors,
       }).eq('id', id);
       if (error) fail('finishRun', error);
@@ -84,15 +113,32 @@ export async function latestRun(): Promise<DiscoveryRun | null> {
   return data ? strip<DiscoveryRun>(data as Row) : null;
 }
 
+const LOC_PRIORITY: Record<string, number> = { melbourne: 0, australia_other: 1, unknown: 2, outside_australia: 3 };
+
 export async function listCandidates(status: CandidateStatus, limit = 100): Promise<DiscoveryCandidate[]> {
   const db = await createClient();
   let q = db.from('discovery_candidates').select('*').eq('status', status);
   q = status === 'pending'
     ? q.order('published_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
     : q.order('reviewed_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
-  const { data, error } = await q.limit(limit);
+  const { data, error } = await q.limit(status === 'pending' ? 300 : limit);
   if (error) fail('listCandidates', error);
-  return (data ?? []).map((r) => toCandidate(r as Row));
+  const list = (data ?? []).map((r) => toCandidate(r as Row));
+  if (status !== 'pending') return list;
+  // Melbourne first, then rest of Australia, then unknown, then outside Australia; newest within each group.
+  const t = (v: string | null) => (v ? Date.parse(v) || 0 : 0);
+  return list
+    .sort((a, b) =>
+      (LOC_PRIORITY[a.location_match] ?? 2) - (LOC_PRIORITY[b.location_match] ?? 2) ||
+      t(b.published_at) - t(a.published_at) ||
+      t(b.created_at) - t(a.created_at))
+    .slice(0, limit);
+}
+
+export async function setRunCost(runId: string, cost: number): Promise<void> {
+  const db = await createClient();
+  const { error } = await db.from('discovery_runs').update({ cost_usd: cost }).eq('id', runId);
+  if (error) fail('setRunCost', error);
 }
 
 export async function candidateCounts(): Promise<Record<CandidateStatus, number>> {
