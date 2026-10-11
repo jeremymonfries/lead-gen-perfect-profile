@@ -100,6 +100,11 @@ describe('prompt and schema', () => {
     expect(s).toContain('Set roundup true');
     expect(s).not.toMatch(/opinion pieces, listicles/);
   });
+  it('rejects job-board and topic/index pages', () => {
+    const s = buildClassifySystemPrompt();
+    expect(s).toContain('job listings or job-board pages');
+    expect(s).toContain('topic/tag/index/archive pages that list many unrelated articles');
+  });
   it('states the evidence-only rule', () => {
     const s = buildClassifySystemPrompt();
     expect(s).toContain('EVIDENCE ONLY');

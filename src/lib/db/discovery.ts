@@ -114,6 +114,15 @@ export async function latestRun(): Promise<DiscoveryRun | null> {
   return data ? strip<DiscoveryRun>(data as Row) : null;
 }
 
+/** Most recent run that used news search (its queries include non-feed entries). */
+export async function lastSearchRun(): Promise<DiscoveryRun | null> {
+  const db = await createClient();
+  const { data, error } = await db.from('discovery_runs').select('*').order('started_at', { ascending: false }).limit(50);
+  if (error) fail('lastSearchRun', error);
+  const row = (data ?? []).find((r) => Array.isArray(r.queries) && r.queries.some((q: string) => !q.startsWith('feed: ')));
+  return row ? strip<DiscoveryRun>(row as Row) : null;
+}
+
 const LOC_PRIORITY: Record<string, number> = { melbourne: 0, australia_other: 1, unknown: 2, outside_australia: 3 };
 
 export async function listCandidates(status: CandidateStatus, limit = 100): Promise<DiscoveryCandidate[]> {

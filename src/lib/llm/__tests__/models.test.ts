@@ -43,6 +43,13 @@ describe('costUsd', () => {
   });
 });
 
+describe('costUsd web search', () => {
+  it('adds US$0.01 per web search', () => {
+    expect(costUsd(usage({ web_search_requests: 10 }))).toBeCloseTo(0.1);
+    expect(costUsd(usage({ input_tokens: 1_000_000, web_search_requests: 3 }))).toBeCloseTo(0.13);
+  });
+});
+
 describe('withUsage', () => {
   it('passes usage to the sink and chains with an existing onUsage, through withModel', async () => {
     const u = usage({ input_tokens: 5 });

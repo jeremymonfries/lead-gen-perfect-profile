@@ -37,7 +37,7 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   score breakdown, value estimate + assumptions, known/unknown, activity timeline,
   status/estimates/notes/won-lost), settings page.
 - Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 146 unit tests in total (`npm run test`).
+- 151 unit tests in total (`npm run test`).
 - Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
 - Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
   **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
@@ -49,8 +49,7 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
 - `npx supabase start` (Docker) — local DB with migrations applied; `npx supabase stop` to stop.
   Apply new migrations without wiping data: `npx supabase migration up` (`db reset` wipes local data).
 - `.env.local` (gitignored) holds local Supabase keys and a local test login
-  (`TEST_USER_EMAIL` / `TEST_USER_PASSWORD`). Add `ANTHROPIC_API_KEY` (drafts + discovery) and
-  `BRAVE_SEARCH_API_KEY` (discovery) there, then restart the dev server. Neither is set yet.
+  (`TEST_USER_EMAIL` / `TEST_USER_PASSWORD`). Add `ANTHROPIC_API_KEY` (drafts, discovery, news search) there, then restart the dev server. Not set yet.
 - `npm run dev` (or the `.claude/launch.json` preview config). Checks: `npm run typecheck`,
   `npm run lint`, `npm run test`, `npm run build`.
 - Next 16 notes: per-user pages stream behind `<Suspense>`; `requireUser()` calls
@@ -70,8 +69,8 @@ the tool must not fetch or scrape it.
   (114 recent items → 40 pass the keyword filter → ~3 Claude calls/run). Items must match `discovery_keywords`
   before Claude reads them. Not usable: Lawyers Weekly / Accountants Daily (no feed); Business News Australia,
   HRM, Inside HR, Vic Tenders (Cloudflare — never bypass). The Age / ABC skipped (personal-use feed terms likely).
-- **Brave news search (optional)** — only runs when `BRAVE_SEARCH_API_KEY` is set; covers gaps like partner
-  promotions and office moves. Check Brave's terms on storing results; set a spend cap.
+- **Search news (separate, weekly)** — Claude's server-side web search (`claude-search.ts`), one search per query in
+  Settings `discovery_queries` (max 15 per run), ~US$0.01 per query plus tokens. Replaced Brave (its terms forbid storing results).
 - Claude (`classify.ts`) classifies from title/snippet only and lists **people named** (appointee / new partner /
   departing / spokesperson). Irrelevant items kept as `filtered` so a URL is never paid for twice.
 - Accept → lead (source `news`) + named people saved as unverified contacts; appointee/new partner (else
@@ -83,6 +82,12 @@ Appointment **roundups** are kept with `is_roundup` (no Accept button — open t
 reviewed). Same story from several feeds is merged (`duplicate_of`); each feed is capped at 10 items/run (editable).
 Default feeds (verified 11 Oct): Australasian Lawyer, Elite Agent, Financial Newswire, Broker News, ARN, Government
 News, Inside Retail, Campaign Brief. Real runs cost ~US$0.001–0.007 each on Haiku (actual spend tracked in `llm_usage`).
+
+Search news (Claude web search, replaced Brave on 11 Oct 2026 — Brave's terms forbid storing results): separate
+"Search news" button, one `web_search_20250305` call per query (max_uses 1, Melbourne user_location) on the
+discovery model. `page_age` comes back relative ("156 days ago") — parsed by `parsePageAge`; results older than
+45 days or undated are dropped; query gets "(Month YYYY)" appended. Real run: 10 searches → 10 fresh results →
+4 candidates (Grant Thornton, BDO Melbourne), US$0.12. Suggest weekly; tune queries toward news phrasing.
 
 ## People finding
 - Lead page "People to contact": buyer roles per signal (`src/lib/discovery/buyer-roles.ts`, hypotheses) with
@@ -105,7 +110,7 @@ Migrations: `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.
   all-Opus (drafts on Opus add ~US$1). User is cost-conscious: recommend a Console spend limit.
 
 ## Suggested next steps
-1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds work without Brave); tune feeds, keywords and the
+1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds and search both need only the Anthropic key); tune feeds, keywords and the
    classifier prompt from results; try the website lookup on a few accepted leads.
 2. Test outreach drafts against the real Claude API.
 3. Outcomes report (SPEC §8 step 5).

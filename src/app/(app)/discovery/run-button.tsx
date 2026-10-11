@@ -2,11 +2,11 @@
 
 import { useFormStatus } from 'react-dom';
 
-export function RunButton({ disabled }: { disabled?: boolean }) {
+export function RunButton({ disabled, label, pendingLabel, secondary }: { disabled?: boolean; label: string; pendingLabel: string; secondary?: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn-primary" disabled={disabled || pending}>
-      {pending ? 'Running… this takes about a minute' : 'Run discovery now'}
+    <button type="submit" className={secondary ? 'btn' : 'btn btn-primary'} disabled={disabled || pending}>
+      {pending ? pendingLabel : label}
     </button>
   );
 }

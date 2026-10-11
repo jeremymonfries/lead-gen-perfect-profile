@@ -12,6 +12,7 @@ export async function recordUsage(job: UsageJob, refId: string | null, usages: L
     job, ref_id: refId, model: u.model,
     input_tokens: u.input_tokens, output_tokens: u.output_tokens,
     cache_read_input_tokens: u.cache_read_input_tokens, cache_creation_input_tokens: u.cache_creation_input_tokens,
+    web_search_requests: u.web_search_requests ?? 0,
     cost_usd: costUsd(u),
   }));
   const db = await createClient();

@@ -62,7 +62,7 @@ For each numbered result decide whether it is a lead candidate.
 
 RELEVANT only if the result names a specific organisation (or an executive at one) with a fresh buying signal, such as: new office or relocation, rebrand, hiring burst or expansion, executive or board appointment, partner promotions at professional firms, merger or acquisition, graduate intake, tender for photography, business launch, or a major event.
 
-NOT RELEVANT: general market or economy news, consumer stories, sport, crime, opinion pieces, generic listicles (e.g. "10 tips for..."), organisations clearly operating only outside Australia, and articles where no organisation is named (except appointments roundups, below).
+NOT RELEVANT: general market or economy news, consumer stories, sport, crime, opinion pieces, generic listicles (e.g. "10 tips for..."), job listings or job-board pages, topic/tag/index/archive pages that list many unrelated articles (titles like "<topic> - <Publisher>" with no specific event), organisations clearly operating only outside Australia, and articles where no organisation is named (except appointments roundups, below).
 
 EVIDENCE ONLY: use only facts stated in the title and snippet. company_name, company_domain, city, state and est_headcount must be null unless stated. Set est_headcount only if a number of staff, hires or people is explicitly stated. Never guess or infer a domain.
 

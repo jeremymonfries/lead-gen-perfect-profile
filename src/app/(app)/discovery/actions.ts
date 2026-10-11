@@ -5,7 +5,7 @@ import { requireUser } from '@/lib/auth';
 import { createLead, getSettings, updateSettings } from '@/lib/db';
 import { claimCandidate, createDiscoveryStore, getCandidateLeadId, hasActiveRun, setCandidateLead, setRunCost } from '@/lib/db/discovery';
 import { addContacts, listCompanyContacts, setLeadContact } from '@/lib/db/contacts';
-import { BraveNewsProvider } from '@/lib/discovery/news';
+import { ClaudeWebSearchProvider } from '@/lib/discovery/claude-search';
 import { RssFeedProvider } from '@/lib/discovery/rss';
 import { runDiscovery } from '@/lib/discovery/run';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
@@ -19,35 +19,55 @@ const str = (fd: FormData, k: string): string | undefined => {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 };
 
-export async function runDiscoveryAction() {
-  await requireUser();
-  if (!process.env.ANTHROPIC_API_KEY) return;
-  if (await hasActiveRun()) return;
-  const settings = await getSettings();
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-  const search = braveKey ? new BraveNewsProvider(braveKey) : undefined;
-  const queries = settings.discovery_queries;
-  const feeds = settings.discovery_feeds;
-  if (feeds.length === 0 && !search) return;
-  // Feed, search and classification errors are recorded on the run rather than thrown.
-  const usages: LLMUsage[] = [];
-  const res = await runDiscovery({
-    llm: withUsage(withModel(getDefaultProvider(), settings.llm_models.discovery), (u) => usages.push(u)),
-    store: createDiscoveryStore(),
-    queries,
-    search,
-    feeds,
-    feedProvider: new RssFeedProvider(),
-    keywords: settings.discovery_keywords,
-    feedMaxItems: settings.discovery_feed_max_items,
-  });
+async function recordRun(runId: string, usages: LLMUsage[]) {
   try {
-    const cost = await recordUsage('discovery', res.runId, usages);
-    await setRunCost(res.runId, cost);
+    const cost = await recordUsage('discovery', runId, usages);
+    await setRunCost(runId, cost);
   } catch (e) {
     console.error('Failed to record discovery usage', e);
   }
   revalidatePath('/discovery');
+}
+
+/** Feeds only (daily). Feed and classification errors are recorded on the run rather than thrown. */
+export async function runFeedsAction() {
+  await requireUser();
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  if (await hasActiveRun()) return;
+  const settings = await getSettings();
+  if (settings.discovery_feeds.length === 0) return;
+  const usages: LLMUsage[] = [];
+  const res = await runDiscovery({
+    llm: withUsage(withModel(getDefaultProvider(), settings.llm_models.discovery), (u) => usages.push(u)),
+    store: createDiscoveryStore(),
+    queries: [],
+    feeds: settings.discovery_feeds,
+    feedProvider: new RssFeedProvider(),
+    keywords: settings.discovery_keywords,
+    feedMaxItems: settings.discovery_feed_max_items,
+  });
+  await recordRun(res.runId, usages);
+}
+
+/** Claude web search only (weekly). Each query is one paid web search. */
+export async function runSearchAction() {
+  await requireUser();
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  if (await hasActiveRun()) return;
+  const settings = await getSettings();
+  const queries = settings.discovery_queries.slice(0, 15);
+  if (queries.length === 0) return;
+  const usages: LLMUsage[] = [];
+  const collect = (u: LLMUsage) => { usages.push(u); };
+  const res = await runDiscovery({
+    llm: withUsage(withModel(getDefaultProvider(), settings.llm_models.discovery), collect),
+    store: createDiscoveryStore(),
+    queries,
+    search: new ClaudeWebSearchProvider({ model: settings.llm_models.discovery, onUsage: collect }),
+    feeds: [],
+    keywords: settings.discovery_keywords,
+  });
+  await recordRun(res.runId, usages);
 }
 
 export async function acceptCandidate(formData: FormData) {

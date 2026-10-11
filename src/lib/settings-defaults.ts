@@ -34,16 +34,16 @@ export const DEFAULT_SETTINGS: Settings = {
   approved_claims: [],
   // Starting hypotheses for Melbourne buying signals; edit on the Discovery page.
   discovery_queries: [
-    'Melbourne new office opening',
+    'Melbourne accounting firm new partners',
+    'Melbourne law firm partner promotions',
+    'Melbourne company opens new office',
     'Melbourne headquarters relocation',
+    'appointed chief executive Melbourne company',
+    'Melbourne firms merge',
     'Melbourne company rebrand',
-    'appointed chief executive Melbourne',
+    'Victoria company expansion hiring staff',
+    'Melbourne graduate program 2027 intake',
     'board appointment Melbourne company',
-    'Melbourne law firm new partners',
-    'Melbourne accounting firm partner promotions',
-    'Melbourne company expansion hiring',
-    'Melbourne graduate program intake',
-    'Melbourne firms merger',
   ],
   // Feeds verified working on 11 Oct 2026; chosen for named people moves, appointments and openings in target industries.
   discovery_feeds: [

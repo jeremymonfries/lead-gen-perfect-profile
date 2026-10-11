@@ -26,7 +26,7 @@ export interface Settings {
   freshness_days: Record<SignalType, number>;
   service_catalogue: { id: string; name: string; description: string }[];
   approved_claims: string[];
-  discovery_queries: string[];     // news search queries (Brave; only used when a key is set)
+  discovery_queries: string[];     // news search queries (used by the Search news step)
   discovery_feeds: { name: string; url: string }[]; // RSS/Atom feeds checked on every run
   discovery_keywords: string[];    // feed items must match one of these before Claude sees them
   discovery_feed_max_items: number; // most recent matching items kept per feed per run (1-50)

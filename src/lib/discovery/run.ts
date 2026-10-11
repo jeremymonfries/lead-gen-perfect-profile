@@ -52,7 +52,7 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
       feeds.push({ name: f.name.trim() || url, url });
     }
   }
-  if (!queries.length && !feeds.length) throw new Error('Nothing to run: add feeds, or a Brave key and queries');
+  if (!queries.length && !feeds.length) throw new Error('Nothing to run: add feeds or search queries');
   const batchSize = deps.batchSize ?? 15;
   const maxNew = deps.maxNewItems ?? 120;
   const feedMax = deps.feedMaxItems ?? 10;

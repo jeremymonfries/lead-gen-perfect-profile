@@ -40,7 +40,7 @@ const llmAll = (relevantIdx: number[]): LLMProvider => ({
 describe('runDiscovery', () => {
   it('throws before starting when no queries', async () => {
     const { store } = mkStore();
-    await expect(run({ search: search({}), llm: llmAll([]), store, queries: ['  ', ''] })).rejects.toThrow('Nothing to run: add feeds, or a Brave key and queries');
+    await expect(run({ search: search({}), llm: llmAll([]), store, queries: ['  ', ''] })).rejects.toThrow('Nothing to run: add feeds or search queries');
     expect(store.startRun).not.toHaveBeenCalled();
   });
 

@@ -4,6 +4,8 @@ export interface LLMUsage {
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
+  /** Server-side web searches performed (US$0.01 each). */
+  web_search_requests?: number;
 }
 
 export interface LLMCompleteRequest {

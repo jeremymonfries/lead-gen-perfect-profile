@@ -3,11 +3,11 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
 import { fmtUsd, monthStartIso, usageSummary } from '@/lib/db/usage';
-import { candidateCounts, hasActiveRun, latestRun, listCandidates } from '@/lib/db/discovery';
+import { candidateCounts, hasActiveRun, lastSearchRun, latestRun, listCandidates } from '@/lib/db/discovery';
 import type { CandidateStatus, LocationMatch } from '@/lib/types';
 import { buyerRoles, linkedInPeopleSearchUrl } from '@/lib/discovery/buyer-roles';
 import { fmtDate, fmtDateTime, label } from '@/components/format';
-import { acceptCandidate, rejectCandidate, restoreCandidate, runDiscoveryAction, saveDiscoveryFeeds, saveDiscoveryKeywords, saveFeedMaxItems, saveDiscoveryQueries } from './actions';
+import { acceptCandidate, rejectCandidate, restoreCandidate, runFeedsAction, runSearchAction, saveDiscoveryFeeds, saveDiscoveryKeywords, saveFeedMaxItems, saveDiscoveryQueries } from './actions';
 import { RunButton } from './run-button';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -18,7 +18,7 @@ type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
 
 const TABS: { id: CandidateStatus; name: string; empty: string }[] = [
-  { id: 'pending', name: 'Pending', empty: 'No candidates waiting for review. Run discovery to find some.' },
+  { id: 'pending', name: 'Pending', empty: 'No candidates waiting for review. Check feeds to find some.' },
   { id: 'accepted', name: 'Accepted', empty: 'Nothing accepted yet.' },
   { id: 'rejected', name: 'Rejected', empty: 'Nothing rejected.' },
   { id: 'filtered', name: 'Filtered out by Claude', empty: 'Nothing was filtered out.' },
@@ -62,12 +62,12 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
   const requested = one(sp.status);
   const tab = TABS.find((t) => t.id === requested) ?? TABS[0];
 
-  const [settings, run, active, counts, candidates, usage] = await Promise.all([
-    getSettings(), latestRun(), hasActiveRun(), candidateCounts(), listCandidates(tab.id), usageSummary(monthStartIso()),
+  const [settings, run, searchRun, active, counts, candidates, usage] = await Promise.all([
+    getSettings(), latestRun(), lastSearchRun(), hasActiveRun(), candidateCounts(), listCandidates(tab.id), usageSummary(monthStartIso()),
   ]);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
-  const hasBrave = Boolean(process.env.BRAVE_SEARCH_API_KEY);
-  const canRun = hasAnthropic && (settings.discovery_feeds.length > 0 || hasBrave);
+  const canFeeds = hasAnthropic && settings.discovery_feeds.length > 0;
+  const canSearch = hasAnthropic && settings.discovery_queries.length > 0;
   const decided = counts.accepted + counts.rejected;
   const rate = decided > 0 ? `${Math.round((counts.accepted / decided) * 100)}%` : '—';
 
@@ -78,14 +78,20 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
           Missing ANTHROPIC_API_KEY. Add it to .env.local and restart the server to enable discovery.
         </div>
       )}
-      {!hasBrave && <p className="text-xs text-gray-500">News search is off (no Brave key) — feeds only.</p>}
 
       <div className="card space-y-2">
-        <form action={runDiscoveryAction} className="flex flex-wrap items-center gap-3">
-          <RunButton disabled={!canRun || active} />
+        <div className="flex flex-wrap items-center gap-3">
+          <form action={runFeedsAction}>
+            <RunButton disabled={!canFeeds || active} label="Check feeds" pendingLabel="Checking feeds… this takes about a minute" />
+          </form>
+          <form action={runSearchAction}>
+            <RunButton secondary disabled={!canSearch || active} label="Search news" pendingLabel="Searching… up to two minutes" />
+          </form>
           {active && <span className="text-sm text-gray-600">A run is already in progress.</span>}
-          {hasAnthropic && !hasBrave && settings.discovery_feeds.length === 0 && <span className="text-sm text-gray-600">Add at least one feed to run discovery.</span>}
-        </form>
+          {hasAnthropic && settings.discovery_feeds.length === 0 && <span className="text-sm text-gray-600">Add at least one feed to check feeds.</span>}
+        </div>
+        <p className="text-xs text-gray-500">Search news: searches the web for each query below using Claude web search — about US$0.01 per query plus a little Claude usage (≈US$0.15 for 10 queries). Weekly is plenty.</p>
+        <p className="text-xs text-gray-500">Last news search: {searchRun ? fmtDateTime(searchRun.started_at) : 'never'}</p>
         <p className="text-xs text-gray-500">Claude spend this month: {fmtUsd(usage.total)}</p>
         {run ? (
           <div className="text-sm text-gray-700">
@@ -248,7 +254,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
         <summary className="cursor-pointer text-sm font-medium">Search queries ({settings.discovery_queries.length})</summary>
         <form action={saveDiscoveryQueries} className="mt-3 space-y-2">
           <textarea name="queries" rows={8} defaultValue={settings.discovery_queries.join('\n')} className="input w-full font-mono text-xs" aria-label="Search queries, one per line" />
-          <p className="text-xs text-gray-500">One query per line (max 20). Only used when a Brave key is set. Each query costs one search request.</p>
+          <p className="text-xs text-gray-500">Used by Search news. Each query is one web search (US$0.01). One per line (max 20; a run uses the first 15).</p>
           <button type="submit" className="btn btn-primary">Save queries</button>
         </form>
       </details>
