@@ -108,6 +108,14 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
         </section>
         <button className="btn btn-primary" type="submit">Save settings</button>
       </form>
+      <section className="card space-y-2">
+        <h2>Backup</h2>
+        <a href="/api/backup" className="btn" download>Download backup</a>
+        <p className="text-sm text-gray-600">
+          Downloads all your leads, contacts, activity and discovery data as a file. Keep it somewhere safe (e.g. iCloud Drive).
+          For a full database backup, double-click “Back up Perfect Profile” in the project folder.
+        </p>
+      </section>
     </div>
   );
 }

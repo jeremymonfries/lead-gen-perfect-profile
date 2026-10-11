@@ -24,5 +24,11 @@ Repo: https://github.com/jeremymonfries/lead-gen-perfect-profile (private)
 4. Apply migrations: `npx supabase db push` (hosted), or locally `npx supabase migration up` (keeps data) / `npx supabase db reset` (wipes data).
 5. `npm run dev` and open http://localhost:3000.
 
+## Running day to day
+- Start: double-click **Start Perfect Profile** in the project folder (or run `./scripts/start.sh`). It starts Docker, the database and the app, then opens your browser. Leave the window open while you work; Ctrl+C stops the app.
+- Back up: use **Settings > Backup > Download backup** (JSON of your data), or double-click **Back up Perfect Profile** (full database data dump saved to `backups/`, newest 30 kept).
+- Never run `npx supabase db reset` — it wipes all data.
+- Apply new migrations with `npx supabase migration up` (keeps data; `start.sh` does this automatically).
+
 ## Scripts
 `npm run dev | build | lint | typecheck | test`

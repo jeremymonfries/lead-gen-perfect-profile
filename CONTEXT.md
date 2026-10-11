@@ -47,7 +47,12 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   signal, won-lead estimate vs actual, discovery effectiveness vs Claude spend; periods all/90d/FY/month.
   Logic in `src/lib/reports/*` (pure, tested). Useful once won/lost outcomes are recorded.
 
-## Running locally
+## Running locally (decided 11 Oct 2026: stay local until the tool proves useful; hosting options costed —
+Cloudflare Workers Paid ~US$5/mo via OpenNext (needs a test: Next 16 Node `proxy.ts` not yet supported by OpenNext),
+Vercel Pro ~US$20/mo; Supabase Free pauses when idle, Pro ~US$25/mo)
+- Day to day: double-click `Start Perfect Profile.command` (starts Docker, Supabase, migrations, app; opens browser —
+  usually port 3001 because 3000 is used by another app). Backups: `Back up Perfect Profile.command`
+  (`scripts/backup.sh`, keeps 30 in gitignored `backups/`) or Settings → Download backup (`/api/backup`, JSON).
 - `npx supabase start` (Docker) — local DB with migrations applied; `npx supabase stop` to stop.
   Apply new migrations without wiping data: `npx supabase migration up` (`db reset` wipes local data).
 - `.env.local` (gitignored) holds local Supabase keys and a local test login
