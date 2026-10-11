@@ -39,6 +39,7 @@ export async function runDiscoveryAction() {
     feeds,
     feedProvider: new RssFeedProvider(),
     keywords: settings.discovery_keywords,
+    feedMaxItems: settings.discovery_feed_max_items,
   });
   try {
     const cost = await recordUsage('discovery', res.runId, usages);
@@ -150,5 +151,13 @@ export async function saveDiscoveryKeywords(formData: FormData) {
   const raw = String(formData.get('keywords') ?? '');
   const discovery_keywords = [...new Set(raw.split(/[\n,]/).map((s) => s.trim().toLowerCase()).filter(Boolean))].slice(0, 60);
   await updateSettings({ discovery_keywords });
+  revalidatePath('/discovery');
+}
+
+export async function saveFeedMaxItems(formData: FormData) {
+  await requireUser();
+  const n = Number(String(formData.get('max_items') ?? '').trim());
+  if (!Number.isInteger(n) || n < 1 || n > 50) return;
+  await updateSettings({ discovery_feed_max_items: n });
   revalidatePath('/discovery');
 }

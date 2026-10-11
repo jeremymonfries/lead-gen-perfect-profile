@@ -216,3 +216,40 @@ describe('duplicate stories', () => {
     expect(store.recentCandidates).not.toHaveBeenCalled();
   });
 });
+
+describe('per-feed cap', () => {
+  const day = (d: number) => `2026-10-0${d}T00:00:00.000Z`;
+  const feeds = [{ name: 'A', url: 'https://a.com/rss' }, { name: 'B', url: 'https://b.com/rss' }];
+
+  it('keeps the N most recent matching items per feed, undated last, and counts capped_out', async () => {
+    const { store, inserted } = mkStore();
+    const fp = feedProv({
+      'https://a.com/rss': [
+        feedItem('https://a.com/1', 'hires 1', day(1)),
+        feedItem('https://a.com/undated', 'hires undated', null),
+        feedItem('https://a.com/5', 'hires 5', day(5)),
+        feedItem('https://a.com/nomatch', 'nothing', day(9)),
+        feedItem('https://a.com/3', 'hires 3', day(3)),
+      ],
+      'https://b.com/rss': [feedItem('https://b.com/2', 'hires b2', day(2)), feedItem('https://b.com/4', 'hires b4', day(4))],
+    });
+    const r = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds, feedProvider: fp, keywords: ['hires'], feedMaxItems: 2, now: () => NOW });
+    expect(r).toMatchObject({ feed_items: 7, prefiltered_out: 1, capped_out: 2, results_found: 4 });
+    expect(inserted.map((c) => c.url_key).sort()).toEqual(['a.com/3', 'a.com/5', 'b.com/2', 'b.com/4']);
+  });
+
+  it('keeps undated items only when there is room after dated ones', async () => {
+    const { store, inserted } = mkStore();
+    const fp = feedProv({ 'https://a.com/rss': [feedItem('https://a.com/u', 'hires u', null), feedItem('https://a.com/1', 'hires 1', day(1))] });
+    const r = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds: [feeds[0]], feedProvider: fp, keywords: ['hires'], feedMaxItems: 1, now: () => NOW });
+    expect(r.capped_out).toBe(1);
+    expect(inserted.map((c) => c.url_key)).toEqual(['a.com/1']);
+  });
+
+  it('defaults to 10 per feed when unset', async () => {
+    const { store } = mkStore();
+    const items = Array.from({ length: 13 }, (_, i) => feedItem(`https://a.com/${i}`, 'hires', `2026-10-09T00:${String(i).padStart(2, '0')}:00.000Z`));
+    const r = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds: [feeds[0]], feedProvider: feedProv({ 'https://a.com/rss': items }), keywords: ['hires'], now: () => NOW });
+    expect(r).toMatchObject({ capped_out: 3, results_found: 10 });
+  });
+});

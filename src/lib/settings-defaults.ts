@@ -45,18 +45,21 @@ export const DEFAULT_SETTINGS: Settings = {
     'Melbourne graduate program intake',
     'Melbourne firms merger',
   ],
-  // Feeds verified working on 10 Oct 2026; chosen for named people moves and openings.
+  // Feeds verified working on 11 Oct 2026; chosen for named people moves, appointments and openings in target industries.
   discovery_feeds: [
-    { name: 'Campaign Brief', url: 'https://www.campaignbrief.com/feed/' },
+    { name: 'Australasian Lawyer', url: 'https://www.thelawyermag.com/au/rss' },
+    { name: 'Elite Agent (real estate)', url: 'https://www.eliteagent.com/feed/' },
     { name: 'Financial Newswire', url: 'https://www.financialnewswire.com.au/feed/' },
+    { name: 'Broker News', url: 'https://www.brokernews.com.au/rss' },
+    { name: 'ARN (IT channel)', url: 'https://www.arnnet.com.au/rss/' },
     { name: 'Government News', url: 'https://www.governmentnews.com.au/feed/' },
-    { name: 'Mediaweek', url: 'https://www.mediaweek.com.au/feed/' },
-    { name: 'realcommercial.com.au news', url: 'https://www.realcommercial.com.au/news/feed' },
     { name: 'Inside Retail', url: 'https://insideretail.com.au/feed' },
+    { name: 'Campaign Brief', url: 'https://www.campaignbrief.com/feed/' },
   ],
   discovery_keywords: [
     'appoint', 'joins', 'joined', 'hires', 'hired', 'promot', 'partner', 'ceo', 'chief', 'director', 'managing', 'head of',
     'steps up', 'steps down', 'leaves', 'named', 'new office', 'relocat', 'moves to', 'headquarters', 'opens', 'opening',
     'rebrand', 'expand', 'expansion', 'hiring', 'graduate', 'merger', 'merge', 'acquires', 'acquisition', 'launch', 'lease',
   ],
+  discovery_feed_max_items: 10,
 };

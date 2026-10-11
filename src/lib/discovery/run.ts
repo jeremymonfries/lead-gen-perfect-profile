@@ -15,7 +15,7 @@ export interface NewCandidate {
 }
 export interface RunResult {
   status: 'completed' | 'failed'; results_found: number; candidates_created: number; search_requests: number; llm_calls: number;
-  feeds_checked: number; feed_items: number; prefiltered_out: number; duplicates_merged: number; errors: string[];
+  feeds_checked: number; feed_items: number; prefiltered_out: number; capped_out: number; duplicates_merged: number; errors: string[];
 }
 export interface RecentCandidate {
   id: string; company_name: string | null; signal_type: SignalType | null; people: CandidatePerson[]; published_at: string | null; status: string;
@@ -34,7 +34,7 @@ export interface RunDeps {
   llm: LLMProvider; store: DiscoveryStore;
   queries: string[]; search?: NewsSearchProvider;
   feeds: FeedSource[]; feedProvider?: FeedProvider;
-  keywords: string[]; feedMaxAgeDays?: number;
+  keywords: string[]; feedMaxAgeDays?: number; feedMaxItems?: number;
   freshness?: NewsSearchOptions['freshness']; batchSize?: number; maxNewItems?: number; now?: () => Date;
 }
 
@@ -55,11 +55,12 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
   if (!queries.length && !feeds.length) throw new Error('Nothing to run: add feeds, or a Brave key and queries');
   const batchSize = deps.batchSize ?? 15;
   const maxNew = deps.maxNewItems ?? 120;
+  const feedMax = deps.feedMaxItems ?? 10;
   const maxAgeMs = (deps.feedMaxAgeDays ?? 14) * 86_400_000;
   const now = (deps.now ?? (() => new Date()))().getTime();
 
   const runId = await deps.store.startRun([...queries, ...feeds.map((f) => `feed: ${f.name}`)]);
-  const result: RunResult = { status: 'completed', results_found: 0, candidates_created: 0, search_requests: 0, llm_calls: 0, feeds_checked: 0, feed_items: 0, prefiltered_out: 0, duplicates_merged: 0, errors: [] };
+  const result: RunResult = { status: 'completed', results_found: 0, candidates_created: 0, search_requests: 0, llm_calls: 0, feeds_checked: 0, feed_items: 0, prefiltered_out: 0, capped_out: 0, duplicates_merged: 0, errors: [] };
   try {
     const found = new Map<string, { item: NewsItem; origin: string; type: OriginType }>();
     let failures = 0;
@@ -67,11 +68,18 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
       result.feeds_checked++;
       try {
         const items = await deps.feedProvider!.fetchFeed(f.url);
+        const matched: { item: NewsItem; t: number }[] = [];
         for (const item of items) {
           const t = item.publishedAt ? Date.parse(item.publishedAt) : NaN;
           if (!Number.isNaN(t) && now - t > maxAgeMs) continue;
           result.feed_items++;
           if (!matchesKeywords(item, deps.keywords)) { result.prefiltered_out++; continue; }
+          matched.push({ item, t });
+        }
+        // Most recent first, undated last (stable sort keeps feed order within ties).
+        matched.sort((a, b) => (Number.isNaN(a.t) ? 1 : 0) - (Number.isNaN(b.t) ? 1 : 0) || (Number.isNaN(a.t) || Number.isNaN(b.t) ? 0 : b.t - a.t));
+        result.capped_out += Math.max(0, matched.length - feedMax);
+        for (const { item } of matched.slice(0, feedMax)) {
           const key = normalizeUrl(item.url);
           if (!found.has(key)) found.set(key, { item, origin: f.name, type: 'rss' });
         }

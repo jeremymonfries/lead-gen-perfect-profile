@@ -237,6 +237,7 @@ function mergeSettings(stored: Partial<Settings> | null | undefined): Settings {
     ...s,
     score_bands: { ...DEFAULT_SETTINGS.score_bands, ...(s.score_bands ?? {}) },
     freshness_days: { ...DEFAULT_SETTINGS.freshness_days, ...(s.freshness_days ?? {}) },
+    discovery_feed_max_items: Number.isInteger(s.discovery_feed_max_items) && s.discovery_feed_max_items! >= 1 && s.discovery_feed_max_items! <= 50 ? s.discovery_feed_max_items! : DEFAULT_SETTINGS.discovery_feed_max_items,
     llm_models: {
       discovery: isLlmModel(s.llm_models?.discovery) ? s.llm_models.discovery : DEFAULT_SETTINGS.llm_models.discovery,
       drafts: isLlmModel(s.llm_models?.drafts) ? s.llm_models.drafts : DEFAULT_SETTINGS.llm_models.drafts,

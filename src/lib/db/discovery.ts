@@ -89,6 +89,7 @@ export function createDiscoveryStore(): DiscoveryStore {
         feeds_checked: result.feeds_checked,
         feed_items: result.feed_items,
         prefiltered_out: result.prefiltered_out,
+        capped_out: result.capped_out,
         duplicates_merged: result.duplicates_merged,
         errors: result.errors,
       }).eq('id', id);

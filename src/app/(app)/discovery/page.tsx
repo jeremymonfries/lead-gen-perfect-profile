@@ -7,7 +7,7 @@ import { candidateCounts, hasActiveRun, latestRun, listCandidates } from '@/lib/
 import type { CandidateStatus, LocationMatch } from '@/lib/types';
 import { buyerRoles, linkedInPeopleSearchUrl } from '@/lib/discovery/buyer-roles';
 import { fmtDate, fmtDateTime, label } from '@/components/format';
-import { acceptCandidate, rejectCandidate, restoreCandidate, runDiscoveryAction, saveDiscoveryFeeds, saveDiscoveryKeywords, saveDiscoveryQueries } from './actions';
+import { acceptCandidate, rejectCandidate, restoreCandidate, runDiscoveryAction, saveDiscoveryFeeds, saveDiscoveryKeywords, saveFeedMaxItems, saveDiscoveryQueries } from './actions';
 import { RunButton } from './run-button';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -90,7 +90,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
         {run ? (
           <div className="text-sm text-gray-700">
             <div>
-              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.duplicates_merged ?? 0, 'duplicate')} merged · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')} · Claude cost {fmtUsd(Number(run.cost_usd) || 0)}
+              Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.capped_out ?? 0, 'item')} capped · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.duplicates_merged ?? 0, 'duplicate')} merged · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')} · Claude cost {fmtUsd(Number(run.cost_usd) || 0)}
             </div>
             {run.errors.length > 0 && (
               <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
@@ -215,6 +215,11 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
           <textarea name="feeds" rows={8} defaultValue={settings.discovery_feeds.map((f) => `${f.name} | ${f.url}`).join('\n')} className="input w-full font-mono text-xs" aria-label="Feeds, one per line as Name | URL" />
           <p className="text-xs text-gray-500">One per line: Name | https://url (or just a URL; max 30). Checked every run. Free.</p>
           <button type="submit" className="btn btn-primary">Save feeds</button>
+        </form>
+        <form action={saveFeedMaxItems} className="mt-4 flex flex-wrap items-center gap-2">
+          <label htmlFor="max_items" className="text-sm">Max items per feed per run</label>
+          <input id="max_items" name="max_items" type="number" min={1} max={50} step={1} defaultValue={settings.discovery_feed_max_items} className="input w-20" />
+          <button type="submit" className="btn">Save</button>
         </form>
       </details>
 
