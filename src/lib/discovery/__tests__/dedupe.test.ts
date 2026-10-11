@@ -38,6 +38,15 @@ describe('isSameStory', () => {
   });
 });
 
+describe('roundups with null company', () => {
+  it('does not merge two roundups without a shared appointee', () => {
+    const a = s({ company_name: null, people: [person('Jo Bloggs')] });
+    const b = s({ company_name: null, people: [person('Al Smith')] });
+    expect(isSameStory(a, b)).toBe(false);
+    expect(isSameStory(s({ company_name: null }), s({ company_name: null }))).toBe(false);
+  });
+});
+
 describe('newPeople', () => {
   it('returns only names not already present', () => {
     expect(newPeople([person('Jo Bloggs')], [person('jo bloggs'), person('Al Smith')]).map((p) => p.name)).toEqual(['Al Smith']);

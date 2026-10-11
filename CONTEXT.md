@@ -37,7 +37,7 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   score breakdown, value estimate + assumptions, known/unknown, activity timeline,
   status/estimates/notes/won-lost), settings page.
 - Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 124 unit tests in total (`npm run test`).
+- 146 unit tests in total (`npm run test`).
 - Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
 - Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
   **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
@@ -76,6 +76,13 @@ the tool must not fetch or scrape it.
   departing / spokesperson). Irrelevant items kept as `filtered` so a URL is never paid for twice.
 - Accept → lead (source `news`) + named people saved as unverified contacts; appointee/new partner (else
   spokesperson) becomes primary contact; departing people never primary.
+
+Classifier rules (tuned 11 Oct 2026 on real runs): items from Australian trade feeds aren't rejected just for not
+stating an Australian presence (location "unknown"); rejected only if the snippet places the org/role solely overseas.
+Appointment **roundups** are kept with `is_roundup` (no Accept button — open the article, add leads manually, mark
+reviewed). Same story from several feeds is merged (`duplicate_of`); each feed is capped at 10 items/run (editable).
+Default feeds (verified 11 Oct): Australasian Lawyer, Elite Agent, Financial Newswire, Broker News, ARN, Government
+News, Inside Retail, Campaign Brief. Real runs cost ~US$0.001–0.007 each on Haiku (actual spend tracked in `llm_usage`).
 
 ## People finding
 - Lead page "People to contact": buyer roles per signal (`src/lib/discovery/buyer-roles.ts`, hypotheses) with

@@ -10,7 +10,7 @@ export interface NewCandidate {
   run_id: string; url: string; url_key: string; headline: string; snippet: string | null; publisher: string | null; published_at: string | null; query: string;
   origin_type: OriginType; people: CandidatePerson[];
   signal_type: SignalType | null; company_name: string | null; company_domain: string | null; city: string | null; state: string | null;
-  location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: 'pending' | 'filtered';
+  location_match: LocationMatch; est_headcount: number | null; summary: string; rationale: string | null; status: 'pending' | 'filtered'; is_roundup: boolean;
   duplicate_of?: string | null;
 }
 export interface RunResult {
@@ -129,7 +129,7 @@ export async function runDiscovery(deps: RunDeps): Promise<RunResult & { runId: 
             origin_type: c.type, people: cl.people,
             signal_type: cl.signal_type, company_name: cl.company_name, company_domain: cl.company_domain, city: cl.city, state: cl.state,
             location_match: cl.location_match, est_headcount: cl.est_headcount, summary: cl.summary || c.item.title, rationale: cl.rationale || null,
-            status: cl.relevant ? 'pending' : 'filtered',
+            status: cl.relevant ? 'pending' : 'filtered', is_roundup: cl.roundup,
           });
         });
       } catch (e) {

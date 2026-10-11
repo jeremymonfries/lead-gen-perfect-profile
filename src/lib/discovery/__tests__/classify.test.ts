@@ -8,7 +8,7 @@ const inputs: ClassifyInput[] = [
 ];
 const item = (o: Record<string, unknown> = {}) => ({
   index: 0, relevant: true, signal_type: 'new_office', company_name: 'Acme', company_domain: 'https://www.Acme.com.au/about', city: 'Melbourne', state: 'VIC',
-  location_match: 'melbourne', est_headcount: 40, summary: 'Acme opened an office.', rationale: 'New office.', people: [], ...o,
+  location_match: 'melbourne', est_headcount: 40, summary: 'Acme opened an office.', rationale: 'New office.', people: [], roundup: false, ...o,
 });
 const prov = (...outs: unknown[]): LLMProvider & { complete: ReturnType<typeof vi.fn> } => {
   const complete = vi.fn();
@@ -78,7 +78,28 @@ describe('people', () => {
   });
 });
 
+describe('roundups', () => {
+  it('keeps a relevant roundup with null company', async () => {
+    const m = await classifyBatch(inputs, prov({ items: [item({ roundup: true, company_name: null, signal_type: 'exec_appointment', location_match: 'unknown', people: [{ name: 'Jo Bloggs', title: null, role: 'appointee' }] })] }));
+    expect(m.get(0)).toMatchObject({ relevant: true, roundup: true, company_name: null, signal_type: 'exec_appointment' });
+    expect(m.get(0)!.people).toHaveLength(1);
+  });
+  it('still downgrades a non-roundup with no company, and forces roundup false when not relevant', async () => {
+    const m = await classifyBatch(inputs, prov({ items: [item({ company_name: null }), item({ index: 1, relevant: false, roundup: true })] }));
+    expect(m.get(0)).toMatchObject({ relevant: false, roundup: false });
+    expect(m.get(1)).toMatchObject({ relevant: false, roundup: false });
+  });
+});
+
 describe('prompt and schema', () => {
+  it('has the location and roundup rules', () => {
+    const s = buildClassifySystemPrompt();
+    expect(s).toContain('Do NOT reject an item only because the snippet does not state an Australian presence');
+    expect(s).toContain('clearly places the organisation or role solely outside Australia');
+    expect(s).toContain('ROUNDUPS');
+    expect(s).toContain('Set roundup true');
+    expect(s).not.toMatch(/opinion pieces, listicles/);
+  });
   it('states the evidence-only rule', () => {
     const s = buildClassifySystemPrompt();
     expect(s).toContain('EVIDENCE ONLY');

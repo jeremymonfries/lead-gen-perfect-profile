@@ -130,6 +130,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="link font-medium">{c.headline}</a>
                 <div className="flex flex-wrap gap-1">
+                  {c.is_roundup && <span className="badge bg-purple-100 text-purple-800">Roundup — open to review</span>}
                   {c.signal_type && <span className="badge bg-gray-100 text-gray-800">{label(c.signal_type)}</span>}
                   <span className={`badge ${LOC_CLASS[c.location_match]}`}>{label(c.location_match)}</span>
                 </div>
@@ -171,11 +172,22 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                 </div>
               )}
               {c.duplicate_of && <p className="text-xs text-gray-500">Merged into an earlier candidate; any new people were added to it.</p>}
+              {c.is_roundup && <p className="text-sm text-purple-800">Covers several organisations. Open the article and add the relevant ones as leads (New lead), then mark it reviewed.</p>}
               {c.rationale && <p className="text-xs text-gray-500">{c.rationale}</p>}
               {c.status === 'rejected' && c.reject_reason && <p className="text-xs text-gray-600">Rejected: {c.reject_reason}</p>}
 
               <div className="flex flex-wrap items-center gap-2">
-                {c.status === 'pending' && (
+                {c.status === 'pending' && c.is_roundup && (
+                  <>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open article</a>
+                    <form action={rejectCandidate}>
+                      <input type="hidden" name="candidate_id" value={c.id} />
+                      <input type="hidden" name="reason" value="Roundup reviewed" />
+                      <button type="submit" className="btn">Mark reviewed</button>
+                    </form>
+                  </>
+                )}
+                {c.status === 'pending' && !c.is_roundup && (
                   <>
                     <form action={acceptCandidate}>
                       <input type="hidden" name="candidate_id" value={c.id} />
@@ -195,7 +207,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                       <input type="hidden" name="candidate_id" value={c.id} />
                       <button type="submit" className="btn">Restore to pending</button>
                     </form>
-                    {c.status === 'filtered' && (
+                    {c.status === 'filtered' && !c.is_roundup && (
                       <form action={acceptCandidate}>
                         <input type="hidden" name="candidate_id" value={c.id} />
                         <button type="submit" className="btn btn-primary">Accept</button>

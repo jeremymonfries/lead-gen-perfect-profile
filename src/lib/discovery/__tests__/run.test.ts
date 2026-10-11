@@ -10,7 +10,7 @@ const news = (url: string, title = url): NewsItem => ({ url, title, description:
 const cls = (index: number, relevant: boolean) => ({
   index, relevant, people: [{ name: index === 0 ? ' Jo Bloggs ' : `Jo Bloggs${index}`, title: 'Partner', role: 'new_partner' }, { name: index === 0 ? 'jo bloggs' : `jo bloggs${index}`, title: null, role: 'other' }],
   signal_type: relevant ? 'hiring' : null, company_name: relevant ? `Acme${index}` : null, company_domain: null, city: null, state: null,
-  location_match: 'unknown', est_headcount: null, summary: relevant ? 'Acme hires.' : 'Nothing.', rationale: 'why',
+  location_match: 'unknown', est_headcount: null, summary: relevant ? 'Acme hires.' : 'Nothing.', rationale: 'why', roundup: false,
 });
 
 function mkStore(known: string[] = [], recent: RecentCandidate[] = []) {
@@ -251,5 +251,15 @@ describe('per-feed cap', () => {
     const items = Array.from({ length: 13 }, (_, i) => feedItem(`https://a.com/${i}`, 'hires', `2026-10-09T00:${String(i).padStart(2, '0')}:00.000Z`));
     const r = await runDiscovery({ llm: llmAll([]), store, queries: [], feeds: [feeds[0]], feedProvider: feedProv({ 'https://a.com/rss': items }), keywords: ['hires'], now: () => NOW });
     expect(r).toMatchObject({ capped_out: 3, results_found: 10 });
+  });
+});
+
+describe('roundup candidates', () => {
+  it('carries is_roundup into NewCandidate', async () => {
+    const { store, inserted } = mkStore();
+    const llm: LLMProvider = { complete: vi.fn(async () => ({ items: [{ ...cls(0, true), roundup: true, company_name: null, signal_type: 'exec_appointment' }, cls(1, true)] })) };
+    await run({ search: search({ q: [news('https://a.com/r'), news('https://b.com/n')] }), llm, store, queries: ['q'] });
+    expect(inserted.find((r) => r.url === 'https://a.com/r')).toMatchObject({ is_roundup: true, status: 'pending', company_name: null });
+    expect(inserted.find((r) => r.url === 'https://b.com/n')).toMatchObject({ is_roundup: false });
   });
 });
