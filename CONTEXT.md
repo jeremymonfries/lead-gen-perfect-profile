@@ -37,13 +37,15 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   score breakdown, value estimate + assumptions, known/unknown, activity timeline,
   status/estimates/notes/won-lost), settings page.
 - Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 151 unit tests in total (`npm run test`).
+- 165 unit tests in total (`npm run test`).
 - Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
 - Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
   **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
 - Migrations: `20261010000000_init.sql`, `20261010000100_lead_value_is_manual.sql`,
   `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql` (all applied to the local DB).
-- Not built yet: **outcomes report** (SPEC §8 step 5: leads by source, conversion, actual vs estimate).
+- **Outcomes report** at `/reports` (SPEC §8 step 5): funnel by source / lead type / commercial state / score band /
+  signal, won-lead estimate vs actual, discovery effectiveness vs Claude spend; periods all/90d/FY/month.
+  Logic in `src/lib/reports/*` (pure, tested). Useful once won/lost outcomes are recorded.
 
 ## Running locally
 - `npx supabase start` (Docker) — local DB with migrations applied; `npx supabase stop` to stop.
@@ -113,7 +115,6 @@ Migrations: `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.
 1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds and search both need only the Anthropic key); tune feeds, keywords and the
    classifier prompt from results; try the website lookup on a few accepted leads.
 2. Test outreach drafts against the real Claude API.
-3. Outcomes report (SPEC §8 step 5).
 4. Optional: "ASX announcement" quick-capture shortcut for manually spotted appointments.
 
 ## Other open items

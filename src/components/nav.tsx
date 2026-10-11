@@ -9,6 +9,7 @@ export function Nav() {
           <Link href="/leads" className="link">Leads</Link>
           <Link href="/leads/new" className="link">New lead</Link>
           <Link href="/discovery" className="link">Discovery</Link>
+          <Link href="/reports" className="link">Report</Link>
           <Link href="/settings" className="link">Settings</Link>
         </nav>
         <form action="/auth/signout" method="post">
