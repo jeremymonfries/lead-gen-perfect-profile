@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   price_base_fee: null,
   price_per_head: null,
   score_bands: { high: 80, review: 65, research: 45 },
+  llm_models: { discovery: 'claude-haiku-5-5', drafts: 'claude-opus-5-5' },
   freshness_days: {
     tender: 60,
     rebrand: 90,

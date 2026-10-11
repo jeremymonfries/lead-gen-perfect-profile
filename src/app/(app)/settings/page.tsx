@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth';
 import { getSettings } from '@/lib/db';
 import { SIGNAL_TYPES, label } from '@/components/format';
+import { LLM_MODELS } from '@/lib/llm/models';
 import { updateSettingsAction } from './actions';
 
 const Num = ({ name, children, value, step }: { name: string; children: string; value: number | null; step?: string }) => (
@@ -49,6 +50,22 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
         </div>
       )}
       <form action={updateSettingsAction} className="space-y-4">
+        <section className="card grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <h2 className="col-span-full">Claude models (cost control)</h2>
+          <div>
+            <label className="label" htmlFor="llm_discovery">Discovery &amp; website lookup</label>
+            <select id="llm_discovery" name="llm_discovery" defaultValue={s.llm_models.discovery} className="input">
+              {LLM_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="llm_drafts">Outreach drafts</label>
+            <select id="llm_drafts" name="llm_drafts" defaultValue={s.llm_models.drafts} className="input">
+              {LLM_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </div>
+          <p className="col-span-full text-sm text-gray-600">Discovery runs and website lookups are frequent, so a cheap model is recommended. Set a monthly spend limit in the Anthropic Console too.</p>
+        </section>
         <section className="card grid grid-cols-2 gap-3 sm:grid-cols-4">
           <h2 className="col-span-full">Commercial thresholds (A$)</h2>
           <Num name="target_value" value={s.target_value}>Target value</Num>

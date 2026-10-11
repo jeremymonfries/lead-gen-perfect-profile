@@ -9,6 +9,7 @@ import { BraveNewsProvider } from '@/lib/discovery/news';
 import { RssFeedProvider } from '@/lib/discovery/rss';
 import { runDiscovery } from '@/lib/discovery/run';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
+import { withModel } from '@/lib/llm/provider';
 import { label } from '@/components/format';
 import { recompute } from '../leads/actions';
 
@@ -29,7 +30,7 @@ export async function runDiscoveryAction() {
   if (feeds.length === 0 && !search) return;
   // Feed, search and classification errors are recorded on the run rather than thrown.
   await runDiscovery({
-    llm: getDefaultProvider(),
+    llm: withModel(getDefaultProvider(), settings.llm_models.discovery),
     store: createDiscoveryStore(),
     queries,
     search,

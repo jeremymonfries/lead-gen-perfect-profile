@@ -37,7 +37,7 @@ outreach. Goal: qualified, viable opportunities, not lead volume.
   score breakdown, value estimate + assumptions, known/unknown, activity timeline,
   status/estimates/notes/won-lost), settings page.
 - Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 120 unit tests in total (`npm run test`).
+- 124 unit tests in total (`npm run test`).
 - Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
 - Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
   **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
@@ -90,6 +90,12 @@ the tool must not fetch or scrape it.
 Code: `src/lib/discovery/*` (pure, tested), `src/lib/db/{discovery,contacts}.ts`, `src/app/(app)/discovery/*`,
 `src/app/(app)/leads/people-actions.ts`, `src/app/(app)/leads/[id]/people-section.tsx`.
 Migrations: `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql`.
+
+## Claude cost control
+- Models chosen per job on the Settings page (`settings.llm_models`): discovery + website lookup default
+  `claude-haiku-5-5`, drafts default `claude-opus-5-5`. `ANTHROPIC_MODEL` env is only a fallback.
+- Estimates (11 Oct 2026 prices): a month of daily runs + 20 lookups + 40 drafts ≈ US$0.20 on Haiku vs ≈ US$5.60
+  all-Opus (drafts on Opus add ~US$1). User is cost-conscious: recommend a Console spend limit.
 
 ## Suggested next steps
 1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds work without Brave); tune feeds, keywords and the

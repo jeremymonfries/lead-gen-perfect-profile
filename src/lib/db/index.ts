@@ -1,4 +1,5 @@
 import 'server-only';
+import { isLlmModel } from '@/lib/llm/models';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_SETTINGS } from '@/lib/settings-defaults';
 import type {
@@ -236,6 +237,10 @@ function mergeSettings(stored: Partial<Settings> | null | undefined): Settings {
     ...s,
     score_bands: { ...DEFAULT_SETTINGS.score_bands, ...(s.score_bands ?? {}) },
     freshness_days: { ...DEFAULT_SETTINGS.freshness_days, ...(s.freshness_days ?? {}) },
+    llm_models: {
+      discovery: isLlmModel(s.llm_models?.discovery) ? s.llm_models.discovery : DEFAULT_SETTINGS.llm_models.discovery,
+      drafts: isLlmModel(s.llm_models?.drafts) ? s.llm_models.drafts : DEFAULT_SETTINGS.llm_models.drafts,
+    },
   };
 }
 
@@ -255,6 +260,7 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
     ...patch,
     score_bands: { ...current.score_bands, ...(patch.score_bands ?? {}) },
     freshness_days: { ...current.freshness_days, ...(patch.freshness_days ?? {}) },
+    llm_models: { ...current.llm_models, ...(patch.llm_models ?? {}) },
   });
   const { error } = await db.from('settings').upsert({ owner_id: userId, data: next }, { onConflict: 'owner_id' });
   if (error) fail('updateSettings', error);

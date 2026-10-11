@@ -22,6 +22,7 @@ export interface Settings {
   price_base_fee: number | null;   // unknown until pricing confirmed
   price_per_head: number | null;
   score_bands: { high: number; review: number; research: number }; // 80, 65, 45
+  llm_models: { discovery: string; drafts: string }; // Claude model per job (see LLM_MODELS)
   freshness_days: Record<SignalType, number>;
   service_catalogue: { id: string; name: string; description: string }[];
   approved_claims: string[];

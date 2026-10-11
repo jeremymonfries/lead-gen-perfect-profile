@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { getSettings, updateSettings, listLeads } from '@/lib/db';
 import { recompute } from '../leads/actions';
+import { isLlmModel } from '@/lib/llm/models';
 import type { Settings } from '@/lib/types';
 import { SIGNAL_TYPES } from '@/components/format';
 
@@ -18,6 +19,11 @@ export async function updateSettingsAction(formData: FormData) {
   await requireUser();
   const cur = await getSettings();
   const n = (k: string, fallback: number) => numOrNull(formData.get(k)) ?? fallback;
+
+  const pick = (k: string, fallback: string) => {
+    const v = formData.get(k);
+    return isLlmModel(v) ? v : fallback;
+  };
 
   const freshness_days = { ...cur.freshness_days };
   for (const t of SIGNAL_TYPES) freshness_days[t] = n(`fresh_${t}`, cur.freshness_days[t]);
@@ -40,6 +46,10 @@ export async function updateSettingsAction(formData: FormData) {
     price_per_head: numOrNull(formData.get('price_per_head')),
     score_bands: { high: n('band_high', cur.score_bands.high), review: n('band_review', cur.score_bands.review), research: n('band_research', cur.score_bands.research) },
     freshness_days,
+    llm_models: {
+      discovery: pick('llm_discovery', cur.llm_models.discovery),
+      drafts: pick('llm_drafts', cur.llm_models.drafts),
+    },
     approved_claims: String(formData.get('approved_claims') ?? '').split('\n').map((s) => s.trim()).filter(Boolean),
     service_catalogue,
   });

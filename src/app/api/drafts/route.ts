@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getLead, getSettings, logActivity, markDraftCopied, saveDraft } from '@/lib/db';
 import { generateDraft } from '@/lib/llm';
+import { getDefaultProvider } from '@/lib/llm/anthropic';
+import { withModel } from '@/lib/llm/provider';
 
 const PostBody = z.object({ leadId: z.string().min(1), channel: z.enum(['email', 'linkedin']) });
 const PatchBody = z.object({ draftId: z.string().min(1), leadId: z.string().min(1) });
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
     const lead = await getLead(leadId);
     if (!lead) return err('Lead not found', 404);
     const settings = await getSettings();
-    const draft = await generateDraft({ lead, channel, settings });
+    const draft = await generateDraft({ lead, channel, settings }, withModel(getDefaultProvider(), settings.llm_models.drafts));
     const saved = await saveDraft({
       lead_id: leadId,
       channel,

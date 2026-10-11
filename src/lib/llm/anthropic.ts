@@ -9,7 +9,7 @@ export class AnthropicProvider implements LLMProvider {
     // Read env lazily so importing this module never requires a key.
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
-    const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+    const model = req.model ?? (process.env.ANTHROPIC_MODEL || DEFAULT_MODEL);
     const client = new Anthropic({ apiKey });
 
     const res = await client.messages.create({

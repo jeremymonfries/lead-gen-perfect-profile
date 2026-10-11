@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth';
-import { getLead, logActivity } from '@/lib/db';
+import { getLead, getSettings, logActivity } from '@/lib/db';
 import { addContacts, listCompanyContacts, setLeadContact } from '@/lib/db/contacts';
 import { buyerRoles } from '@/lib/discovery/buyer-roles';
 import { findPeopleOnWebsite } from '@/lib/discovery/website';
 import { getDefaultProvider } from '@/lib/llm/anthropic';
+import { withModel } from '@/lib/llm/provider';
 import { createClient } from '@/lib/supabase/server';
 
 const str = (fd: FormData, k: string): string | undefined => {
@@ -25,9 +26,10 @@ export async function findPeopleAction(formData: FormData): Promise<void> {
   if (!lead || !company?.domain) return;
   if (!process.env.ANTHROPIC_API_KEY) return;
 
+  const settings = await getSettings();
   const latest = [...lead.signals].sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))[0];
   const result = await findPeopleOnWebsite(company.domain, {
-    llm: getDefaultProvider(),
+    llm: withModel(getDefaultProvider(), settings.llm_models.discovery),
     preferredRoles: buyerRoles(latest?.signal_type ?? null, { leadType: lead.lead_type, companyName: company.name }),
   });
   const added = await addContacts(
