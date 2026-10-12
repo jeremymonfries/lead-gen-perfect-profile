@@ -14,8 +14,8 @@ const pct = (n: number | null, digits = 0) => (n == null ? '—' : `${(n * 100).
 
 export default function ReportsPage({ searchParams }: { searchParams: Promise<SP> }) {
   return (
-    <div className="space-y-4">
-      <Suspense fallback={<div className="space-y-4" aria-busy="true" aria-label="Loading report"><div className="card h-16 animate-pulse bg-surface-container-high" /><div className="card h-64 animate-pulse bg-surface-container-high" /></div>}>
+    <div className="space-y-8">
+      <Suspense fallback={<div className="space-y-6" aria-busy="true" aria-label="Loading report"><div className="panel h-16 animate-pulse bg-surface-container-high" /><div className="card h-64 animate-pulse bg-surface-container-high" /></div>}>
         <ReportContent searchParams={searchParams} />
       </Suspense>
     </div>
@@ -34,19 +34,22 @@ async function ReportContent({ searchParams }: { searchParams: Promise<SP> }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-headline-small">Outcomes</h1>
-        <PeriodLinks current={period} />
+      <div className="page-header">
+        <div>
+          <h1>Outcomes</h1>
+          <p className="page-sub">Win rates, revenue and estimate accuracy for leads created in the period.</p>
+        </div>
+        <div className="page-actions"><PeriodLinks current={period} /></div>
       </div>
 
       {t.leads === 0 ? (
-        <div className="card text-center text-on-surface-variant">No leads were created in this period. <Link href="/reports" className="link">Show all time</Link></div>
+        <div className="panel text-center text-on-surface-variant">No leads were created in this period. <Link href="/reports" className="link">Show all time</Link></div>
       ) : (
         <>
           {report.closed < 5 && (
             <p className="banner banner-warning">Too few closed leads to draw conclusions yet — keep recording won/lost outcomes.</p>
           )}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+          <div className="kpi-strip kpi-lg">
             <Tile k="Leads" v={String(t.leads)} />
             <Tile k="Contacted" v={String(t.contacted)} />
             <Tile k="Won" v={String(t.won)} />
@@ -64,14 +67,14 @@ async function ReportContent({ searchParams }: { searchParams: Promise<SP> }) {
           <Section title="Won leads: estimate vs actual">
             {report.won.length === 0 ? <p className="text-body-medium text-on-surface-variant">No won leads in this period yet.</p> : (
               <div className="overflow-x-auto"><table className="tbl">
-                <thead><tr><th>Lead</th><th>Source</th><th>Estimate (AUD)</th><th>Actual</th><th>Variance</th></tr></thead>
+                <thead><tr><th>Lead</th><th>Source</th><th className="num">Estimate (AUD)</th><th className="num">Actual</th><th className="num">Variance</th></tr></thead>
                 <tbody>{report.won.map((w) => (
                   <tr key={w.id}>
                     <td><Link href={`/leads/${w.id}`} className="link">{w.title}</Link></td>
                     <td>{label(w.source)}</td>
-                    <td className="whitespace-nowrap">{fmtRange(w.low, w.high)}</td>
-                    <td>{fmtAUD(w.actual)}</td>
-                    <td className={w.variance == null ? '' : w.variance >= 0 ? 'text-success' : 'text-error'}>{w.variance == null ? '—' : `${w.variance >= 0 ? '+' : ''}${(w.variance * 100).toFixed(0)}%`}</td>
+                    <td className="num whitespace-nowrap">{fmtRange(w.low, w.high)}</td>
+                    <td className="num">{fmtAUD(w.actual)}</td>
+                    <td className={`num ${w.variance == null ? '' : w.variance >= 0 ? 'text-success' : 'text-error'}`}>{w.variance == null ? '—' : `${w.variance >= 0 ? '+' : ''}${(w.variance * 100).toFixed(0)}%`}</td>
                   </tr>
                 ))}</tbody>
               </table></div>
@@ -81,17 +84,17 @@ async function ReportContent({ searchParams }: { searchParams: Promise<SP> }) {
           <Section title="Discovery effectiveness">
             {disc.origins.length === 0 ? <p className="text-body-medium text-on-surface-variant">No discovery candidates in this period.</p> : (
               <div className="overflow-x-auto"><table className="tbl">
-                <thead><tr><th>Origin</th><th>Found</th><th>Accepted</th><th>Rejected</th><th>Acceptance</th><th>Won</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>Origin</th><th className="num">Found</th><th className="num">Accepted</th><th className="num">Rejected</th><th className="num">Acceptance</th><th className="num">Won</th><th className="num">Revenue</th></tr></thead>
                 <tbody>
                   {[...disc.origins, disc.total].map((o, i, a) => (
                     <tr key={o.origin} className={i === a.length - 1 ? 'text-title-small' : ''}>
-                      <td>{o.origin}</td><td>{o.found}</td><td>{o.accepted}</td><td>{o.rejected}</td><td>{pct(o.acceptanceRate)}</td><td>{o.won}</td><td>{fmtAUD(o.revenue)}</td>
+                      <td>{o.origin}</td><td className="num">{o.found}</td><td className="num">{o.accepted}</td><td className="num">{o.rejected}</td><td className="num">{pct(o.acceptanceRate)}</td><td className="num">{o.won}</td><td className="num">{fmtAUD(o.revenue)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table></div>
             )}
-            <p className="mt-2 text-body-small text-on-surface-variant">
+            <p className="meta mt-3 border-t border-outline-variant pt-3">
               Claude spend this period {fmtUsd(disc.spendUsd)}
               {Object.keys(disc.spendByJob).length > 0 && <> ({Object.entries(disc.spendByJob).map(([j, c]) => `${j} ${fmtUsd(c)}`).join(', ')})</>}
               {' · '}cost per accepted candidate {disc.costPerAcceptedUsd == null ? '—' : fmtUsd(disc.costPerAcceptedUsd)}
@@ -100,7 +103,7 @@ async function ReportContent({ searchParams }: { searchParams: Promise<SP> }) {
             </p>
           </Section>
 
-          <div className="space-y-1 text-body-small text-on-surface-variant">
+          <div className="meta space-y-1">
             <p>Values are estimates from the headcount proxy until pricing is set (SPEC §4). Score is for ranking only, not a probability.</p>
             <p>Win rate = won ÷ (won + lost). A lead counts as having reached a stage if it is there now or ever moved through it. Periods filter by lead created date.</p>
           </div>
@@ -122,29 +125,29 @@ function PeriodLinks({ current }: { current: Period }) {
 }
 
 function Tile({ k, v, sub }: { k: string; v: string; sub?: string }) {
-  return <div className="card"><div className="text-body-small text-on-surface-variant">{k}</div><div className="text-headline-small">{v}</div>{sub && <div className="text-body-small text-on-surface-variant">{sub}</div>}</div>;
+  return <div className="kpi"><div className="kpi-label">{k}</div><div className="kpi-value">{v}</div>{sub && <div className="kpi-sub">{sub}</div>}</div>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="card"><h2>{title}</h2>{children}</section>;
+  return <section><h2 className="section-title">{title}</h2><div className="card overflow-hidden">{children}</div></section>;
 }
 
 function GroupTable({ rows, totals, first, compact }: { rows: GroupRow[]; totals?: GroupRow; first: string; compact?: boolean }) {
   const all = totals ? [...rows, totals] : rows;
   return (
     <div className="overflow-x-auto"><table className="tbl">
-      <thead><tr><th>{first}</th><th>Leads</th><th>Contacted</th><th>Meetings</th><th>Proposals</th><th>Won</th><th>Lost</th><th>Open</th><th>Win rate</th><th>Contact→win</th><th>Revenue</th>{!compact && <th>Est. (won)</th>}<th>Avg deal</th></tr></thead>
+      <thead><tr><th>{first}</th><th className="num">Leads</th><th className="num">Contacted</th><th className="num">Meetings</th><th className="num">Proposals</th><th className="num">Won</th><th className="num">Lost</th><th className="num">Open</th><th className="num">Win rate</th><th className="num">Contact→win</th><th className="num">Revenue</th>{!compact && <th className="num">Est. (won)</th>}<th className="num">Avg deal</th></tr></thead>
       <tbody>
         {all.map((r) => (
           <tr key={r.key} className={r === totals ? 'text-title-small' : ''}>
             <td>{r === totals ? 'Total' : label(r.key)}{r !== totals && r.lowSample && <span className="ml-1 text-body-small text-on-surface-variant">small sample</span>}</td>
-            <td>{r.leads}</td><td>{r.contacted}</td><td>{r.meetings}</td><td>{r.proposals}</td><td>{r.won}</td><td>{r.lost}</td><td>{r.open}</td>
-            <td className={r.lowSample && r !== totals ? 'text-on-surface-variant' : ''}>
-              <div className="flex items-center gap-2"><span>{pct(r.winRate)}</span>
+            <td className="num">{r.leads}</td><td className="num">{r.contacted}</td><td className="num">{r.meetings}</td><td className="num">{r.proposals}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{r.open}</td>
+            <td className={`num ${r.lowSample && r !== totals ? 'text-on-surface-variant' : ''}`}>
+              <div className="flex items-center justify-end gap-2"><span>{pct(r.winRate)}</span>
                 {r.winRate != null && <span className="h-1.5 w-16 rounded-full bg-surface-container-highest" aria-hidden><span className={`block h-1.5 rounded-full ${r.lowSample ? 'bg-outline' : 'bg-primary'}`} style={{ width: `${Math.round(r.winRate * 100)}%` }} /></span>}
               </div>
             </td>
-            <td>{pct(r.contactToWin)}</td><td>{fmtAUD(r.revenue)}</td>{!compact && <td>{fmtAUD(r.estimateForWon)}</td>}<td>{fmtAUD(r.avgDeal)}</td>
+            <td className="num">{pct(r.contactToWin)}</td><td className="num">{fmtAUD(r.revenue)}</td>{!compact && <td className="num">{fmtAUD(r.estimateForWon)}</td>}<td className="num">{fmtAUD(r.avgDeal)}</td>
           </tr>
         ))}
       </tbody>

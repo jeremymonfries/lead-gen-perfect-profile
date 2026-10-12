@@ -13,10 +13,13 @@ const MAX_ROWS = 100;
 
 export default function LeadsPage({ searchParams }: { searchParams: Promise<SP> }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-headline-small">Leads</h1>
-        <Link href="/leads/new" className="btn btn-primary">New lead</Link>
+    <div className="space-y-6">
+      <div className="page-header">
+        <div>
+          <h1>Leads</h1>
+          <p className="page-sub">Values in the table are estimates (A$), not actuals, until a lead is won and revenue is recorded.</p>
+        </div>
+        <div className="page-actions"><Link href="/leads/new" className="btn btn-primary">New lead</Link></div>
       </div>
       <Suspense fallback={<LeadsSkeleton />}>
         <LeadsContent searchParams={searchParams} />
@@ -27,11 +30,9 @@ export default function LeadsPage({ searchParams }: { searchParams: Promise<SP> 
 
 function LeadsSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading leads">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-surface-container-high" />)}
-      </div>
-      <div className="card h-24 animate-pulse bg-surface-container-high" />
+    <div className="space-y-6" aria-busy="true" aria-label="Loading leads">
+      <div className="panel h-16 animate-pulse bg-surface-container-high" />
+      <div className="panel h-16 animate-pulse bg-surface-container-high" />
       <div className="card h-64 animate-pulse bg-surface-container-high" />
     </div>
   );
@@ -66,50 +67,49 @@ async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="card"><div className="text-body-small text-on-surface-variant">Priority queue (qualified + strategic exception)</div><div className="text-headline-small">{prioritised}</div></div>
-        <div className="card"><div className="text-body-small text-on-surface-variant">Awaiting review (status new)</div><div className="text-headline-small">{awaiting}</div></div>
-        <div className="card"><div className="text-body-small text-on-surface-variant">Won leads</div><div className="text-headline-small">{won.length}</div></div>
-        <div className="card"><div className="text-body-small text-on-surface-variant">Actual revenue (won, recorded actuals)</div><div className="text-headline-small">{fmtAUD(actual)}</div></div>
+    <div className="space-y-6">
+      <div className="kpi-strip">
+        <div className="kpi"><div className="kpi-label">Priority queue</div><div className="kpi-value">{prioritised}</div><div className="kpi-sub">qualified + strategic exception</div></div>
+        <div className="kpi"><div className="kpi-label">Awaiting review</div><div className="kpi-value">{awaiting}</div><div className="kpi-sub">status new</div></div>
+        <div className="kpi"><div className="kpi-label">Won leads</div><div className="kpi-value">{won.length}</div></div>
+        <div className="kpi"><div className="kpi-label">Actual revenue</div><div className="kpi-value">{fmtAUD(actual)}</div><div className="kpi-sub">won, recorded actuals</div></div>
       </div>
-      <p className="text-body-small text-on-surface-variant">Values in the table below are estimates (A$), not actuals, until a lead is won and revenue is recorded.</p>
 
-      <form method="get" className="card grid grid-cols-2 gap-2 md:grid-cols-7">
-        <input name="q" defaultValue={filters.q} placeholder="Search…" className="input col-span-2 md:col-span-2" />
-        {sel('status', STATUSES, filters.status)}
-        {sel('source', SOURCES, filters.source)}
-        {sel('commercial_state', COMMERCIAL_STATES, filters.commercial_state)}
-        {sel('lead_type', LEAD_TYPES, filters.lead_type)}
-        <input name="min_score" type="number" min={0} max={100} defaultValue={filters.min_score} placeholder="Min score" className="input" />
-        <div className="col-span-2 flex gap-2 md:col-span-7">
+      <form method="get" className="panel grid grid-cols-2 items-center gap-2 sm:grid-cols-3 lg:grid-cols-[2fr_repeat(4,1fr)_8rem_auto]">
+        <input name="q" defaultValue={filters.q} placeholder="Search…" aria-label="Search" className="input col-span-2 min-w-0 sm:col-span-3 lg:col-span-1" />
+        <div className="min-w-0">{sel('status', STATUSES, filters.status)}</div>
+        <div className="min-w-0">{sel('source', SOURCES, filters.source)}</div>
+        <div className="min-w-0">{sel('commercial_state', COMMERCIAL_STATES, filters.commercial_state)}</div>
+        <div className="min-w-0">{sel('lead_type', LEAD_TYPES, filters.lead_type)}</div>
+        <input name="min_score" type="number" min={0} max={100} defaultValue={filters.min_score} placeholder="Min score" aria-label="Min score" className="input min-w-0" />
+        <div className="col-span-2 flex gap-2 sm:col-span-3 lg:col-span-1">
           <button className="btn btn-tonal" type="submit">Filter</button>
           {hasFilter && <Link href="/leads" className="btn btn-text">Clear</Link>}
         </div>
       </form>
 
       {shown.length === 0 ? (
-        <div className="card text-center text-on-surface-variant">
+        <div className="panel text-center text-on-surface-variant">
           {hasFilter ? 'No leads match these filters.' : 'No leads yet.'}{' '}
           <Link href="/leads/new" className="link">Add a new lead</Link>
         </div>
       ) : (
         <div className="card overflow-x-auto p-0">
           <table className="tbl min-w-[64rem]">
-            <thead><tr><th className="min-w-[17rem]">Lead</th><th>City</th><th>Type</th><th>Source</th><th>Latest signal</th><th>Score</th><th>Commercial</th><th>Est. value (AUD)</th><th>Service</th><th>Status</th></tr></thead>
+            <thead><tr><th className="min-w-[17rem]">Lead</th><th>City</th><th>Type</th><th>Source</th><th>Latest signal</th><th className="num">Score</th><th>Commercial</th><th className="num">Est. value (AUD)</th><th>Service</th><th>Status</th></tr></thead>
             <tbody>
               {shown.map((l) => {
                 const sig = l.latest_signal;
                 return (
                   <tr key={l.id}>
-                    <td className="min-w-[17rem]"><Link href={`/leads/${l.id}`} className="link text-title-small">{l.title}</Link>{l.company && <div className="text-body-small text-on-surface-variant">{l.company.name}</div>}</td>
+                    <td className="min-w-[17rem]"><Link href={`/leads/${l.id}`} className="link text-title-small text-on-surface hover:text-primary">{l.title}</Link>{l.company && <div className="text-body-small text-on-surface-variant">{l.company.name}</div>}</td>
                     <td>{l.company?.city ?? '—'}</td>
                     <td className="whitespace-nowrap">{l.lead_type}</td>
                     <td className="whitespace-nowrap">{l.source}</td>
                     <td>{sig ? <>{label(sig.signal_type)}<div className="text-body-small text-on-surface-variant">{fmtDate(sig.published_at)}</div></> : '—'}</td>
-                    <td>{l.score == null ? '—' : <span className="whitespace-nowrap">{l.score} <BandBadge band={scoreBand(l.score, settings)} /></span>}</td>
+                    <td className="num">{l.score == null ? '—' : <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">{l.score} <BandBadge band={scoreBand(l.score, settings)} /></span>}</td>
                     <td className="whitespace-nowrap"><StateBadge state={l.commercial_state} /></td>
-                    <td className="whitespace-nowrap">{fmtRange(l.est_value_low, l.est_value_high)}</td>
+                    <td className="num whitespace-nowrap">{fmtRange(l.est_value_low, l.est_value_high)}</td>
                     <td>{l.recommended_service ?? '—'}</td>
                     <td className="whitespace-nowrap"><StatusBadge status={l.status} /></td>
                   </tr>
@@ -119,7 +119,7 @@ async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
           </table>
         </div>
       )}
-      {leads.length > MAX_ROWS && <p className="text-body-small text-on-surface-variant">Showing first {MAX_ROWS} of {leads.length}. Narrow with filters.</p>}
+      {leads.length > MAX_ROWS && <p className="meta">Showing first {MAX_ROWS} of {leads.length}. Narrow with filters.</p>}
     </div>
   );
 }

@@ -22,7 +22,7 @@ export const maxDuration = 120;
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Link href="/leads" className="link text-body-small">← Leads</Link>
       <Suspense fallback={<LeadSkeleton />}>
         <LeadContent params={params} />
@@ -33,14 +33,14 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
 function LeadSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading lead">
+    <div className="space-y-6" aria-busy="true" aria-label="Loading lead">
       <div className="h-7 w-64 animate-pulse rounded-sm bg-surface-container-highest" />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-surface-container-high" />)}
         </div>
         <div className="space-y-4">
-          {Array.from({ length: 3 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-surface-container-high" />)}
+          {Array.from({ length: 3 }, (_, i) => <div key={i} className="panel h-32 animate-pulse bg-surface-container-high" />)}
         </div>
       </div>
     </div>
@@ -70,14 +70,16 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {dnc && <div className="banner banner-error text-title-small">DO NOT CONTACT — this contact is flagged. Do not send outreach.</div>}
-      <div>
-        <h1 className="text-headline-small">{lead.title}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-body-medium text-on-surface-variant">
-          <StatusBadge status={lead.status} /><StateBadge state={lead.commercial_state} />
-          {lead.score != null && <span>Score {lead.score} <BandBadge band={scoreBand(lead.score, settings)} /></span>}
-          <span>{lead.lead_type} · source {lead.source} · created {fmtDate(lead.created_at)}</span>
+      <div className="page-header">
+        <div className="min-w-0">
+          <h1>{lead.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <StatusBadge status={lead.status} /><StateBadge state={lead.commercial_state} />
+            {lead.score != null && <span className="inline-flex items-center gap-1 text-label-large text-on-surface">Score {lead.score} <BandBadge band={scoreBand(lead.score, settings)} /></span>}
+          </div>
+          <p className="meta mt-2">{lead.lead_type} · source {lead.source} · created {fmtDate(lead.created_at)}</p>
         </div>
       </div>
 
@@ -85,8 +87,8 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
         <div className="space-y-4 lg:col-span-2">
           <section className="card">
             <h2>Summary</h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
-              <div><dt className="label">Recommended service</dt><dd>{lead.recommended_service ?? '—'}</dd></div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+              <div><dt className="label">Recommended service</dt><dd className="text-body-medium">{lead.recommended_service ?? '—'}</dd></div>
               <div><dt className="label">Next action</dt><dd>{lead.next_action ?? '—'}</dd></div>
               <div><dt className="label">Headcount / locations</dt><dd>{lead.est_headcount ?? '—'} / {lead.est_locations ?? '—'}</dd></div>
               <div><dt className="label">Exception reason</dt><dd>{lead.exception_reason ?? '—'}</dd></div>
@@ -97,7 +99,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
 
           <section className="card">
             <h2>Company &amp; contact</h2>
-            <div className="grid gap-3 sm:grid-cols-2 text-body-medium">
+            <div className="grid gap-4 text-body-medium sm:grid-cols-2">
               <div>
                 <div className="label">Company</div>
                 {lead.company ? <>
@@ -118,17 +120,16 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             </div>
           </section>
 
-          <PeopleSection lead={lead} />
-
           <section className="card">
             <h2>Evidence &amp; signals</h2>
             {signals.length === 0 ? <p className="text-body-medium text-on-surface-variant">No signals recorded.</p> : (
-              <ul className="space-y-2 text-body-medium">
+              <ul className="divide-y divide-outline-variant text-body-medium">
                 {signals.map((s) => (
-                  <li key={s.id}>
-                    <span className="badge bg-surface-container-high">{label(s.signal_type)}</span>{' '}
-                    <span className="text-on-surface-variant">{fmtDate(s.published_at)} ({s.date_confidence})</span>
-                    {s.contribution != null && <span className="text-on-surface-variant"> · +{s.contribution}</span>}
+                  <li key={s.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="badge bg-surface-container-high text-on-surface">{label(s.signal_type)}</span>
+                      <span className="meta">{fmtDate(s.published_at)} ({s.date_confidence}){s.contribution != null && ` · +${s.contribution}`}</span>
+                    </div>
                     <div>{s.summary}</div>
                     {s.source_url && <a className="link break-all text-body-small" href={s.source_url} target="_blank" rel="noreferrer">{s.source_url}</a>}
                   </li>
@@ -136,6 +137,8 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
               </ul>
             )}
           </section>
+
+          <PeopleSection lead={lead} />
 
           <section className="card">
             <h2>Score breakdown (ranking only, not a probability)</h2>
@@ -157,16 +160,19 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
           <section className="card">
             <h2>Activity</h2>
             {activities.length === 0 ? <p className="text-body-medium text-on-surface-variant">No activity.</p> : (
-              <ul className="space-y-2 text-body-medium">
+              <ul className="divide-y divide-outline-variant text-body-medium">
                 {activities.map((a) => (
-                  <li key={a.id} className="border-l-2 border-outline-variant pl-3">
-                    <span className="text-title-small">{label(a.activity_type)}</span> <span className="text-body-small text-on-surface-variant">{fmtDateTime(a.created_at)}</span>
-                    {a.detail && <div className="whitespace-pre-wrap">{a.detail}</div>}
+                  <li key={a.id} className="py-2 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="text-title-small">{label(a.activity_type)}</span>
+                      <span className="meta">{fmtDateTime(a.created_at)}</span>
+                    </div>
+                    {a.detail && <div className="whitespace-pre-wrap text-on-surface-variant">{a.detail}</div>}
                   </li>
                 ))}
               </ul>
             )}
-            <form action={addNote} className="mt-3 flex gap-2">
+            <form action={addNote} className="mt-4 flex gap-2 border-t border-outline-variant pt-4">
               <Hidden id={lead.id} />
               <input name="note" placeholder="Add a note…" className="input" required />
               <button className="btn btn-tonal" type="submit">Add note</button>
@@ -177,10 +183,10 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             <h2>Outreach drafts</h2>
             <DraftGenerator leadId={lead.id} disabled={dnc} />
             {drafts.length > 0 && (
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-4 divide-y divide-outline-variant border-t border-outline-variant">
                 {drafts.map((d) => (
-                  <li key={d.id} className="rounded-sm border border-outline-variant p-2 text-body-medium">
-                    <div className="mb-1 text-body-small text-on-surface-variant">{d.channel}{d.subject ? ` · ${d.subject}` : ''} · {fmtDateTime(d.created_at)} · {d.copied_at ? `copied ${fmtDateTime(d.copied_at)}` : 'not copied'}</div>
+                  <li key={d.id} className="py-3 text-body-medium last:pb-0">
+                    <div className="meta mb-1">{d.channel}{d.subject ? ` · ${d.subject}` : ''} · {fmtDateTime(d.created_at)} · {d.copied_at ? `copied ${fmtDateTime(d.copied_at)}` : 'not copied'}</div>
                     <pre className="whitespace-pre-wrap font-sans">{d.body}</pre>
                   </li>
                 ))}
@@ -190,7 +196,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
 
         <div className="space-y-4">
-          <section className="card">
+          <section className="panel">
             <h2>Commercial</h2>
             <div className="mb-1"><StateBadge state={lead.commercial_state} /></div>
             <div className="text-title-large">{fmtRange(lead.est_value_low, lead.est_value_high)} <span className="text-body-small text-on-surface-variant">estimate</span></div>
@@ -203,7 +209,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             </ul>
           </section>
 
-          <section className="card">
+          <section className="panel">
             <h2>Status</h2>
             <form action={changeStatus} className="flex gap-2">
               <Hidden id={lead.id} />
@@ -212,7 +218,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             </form>
           </section>
 
-          <section className="card">
+          <section className="panel">
             <h2>Edit estimates</h2>
             <form action={saveEstimates} className="grid grid-cols-2 gap-2">
               <Hidden id={lead.id} />
@@ -235,7 +241,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             </form>
           </section>
 
-          <section className="card">
+          <section className="panel">
             <h2>Record outcome</h2>
             <form action={recordOutcome} className="mb-3 flex items-end gap-2">
               <Hidden id={lead.id} /><input type="hidden" name="outcome" value="won" />

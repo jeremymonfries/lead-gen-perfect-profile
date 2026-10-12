@@ -41,19 +41,16 @@ default `claude-haiku-5-5`, drafts default `claude-opus-5-5`. `ANTHROPIC_MODEL` 
 ## Repo
 - GitHub (private): https://github.com/jeremymonfries/lead-gen-perfect-profile — branch `main`.
 - Remote uses SSH host alias `github.com-jmfolio` (`~/.ssh/config`); HTTPS has no credentials; no `gh` CLI.
-- Latest commit: `79d6458 Restyle the interface to Material Design 3`.
+- UI: Material 3 (`79d6458`) + information hierarchy (13 Oct).
 
-## ⚠ Work in progress at handoff (13 Oct 2026)
-- **Information-hierarchy redesign** was launched as a Sonnet sub-agent from the previous session (user feedback:
-  "content appears similar"). It edits `src/app/globals.css` and the (app) pages — **uncommitted**. Check
-  `git status`/`git diff` before starting other UI work. Brief: surface tiers (primary outlined cards vs
-  secondary filled `.panel`s, no cards in cards), page header pattern (headline-medium title + primary action
-  right), section headings outside cards, ONE KPI strip instead of stat tiles, Discovery toolbar with a
-  "Run details" disclosure, structured candidate cards (header/meta/summary · People named | Who to look for
-  · Why · actions footer), two-column lead detail (main outlined cards / lighter side panels), settings sections.
-  To finish: run typecheck/lint/test/build, screenshot each page in light, dark and 375px phone width, show
-  the owner, then commit when they approve. If the diff is broken or incomplete, `git checkout -- .` back to
-  `79d6458` and redo it.
+## UI hierarchy (done 13 Oct 2026)
+Codified in `src/app/globals.css`: `.card` = primary content (surface-container-lowest + outline), `.panel` =
+secondary (filled, flatter; never nest cards/panels), `.page-header` (h1 headline-medium + `.page-sub`, actions
+right on the title row; wraps below 480px), `.section-title`/`.section-desc` outside cards, `.kpi-strip`/`.kpi*`
+(one stats strip, `.kpi-lg` on /reports), `.meta`, `.divider`, `.disclosure`, `.eyebrow` (small label heading —
+NOT `.overline`, which collides with Tailwind's text-decoration utility), `.tbl .num`. Discovery has a compact
+toolbar + "Run details" disclosure and structured candidate cards; lead detail is two columns ≥1024px.
+Tip: if styles look missing in the browser, restart the dev server (stale CSS after big globals.css edits).
 
 ## What's built (all committed)
 - **Leads CRM:** quick capture, list with filters + summary, lead detail (evidence, score breakdown, value
@@ -114,12 +111,11 @@ About 10 leads (9 accepted from discovery + 1 test lead), ~22 pending candidates
 this month. No won/lost outcomes recorded yet, so the report is mostly empty.
 
 ## Suggested next steps
-1. Finish and commit the hierarchy redesign (see Work in progress).
-2. Owner uses the tool for 1–2 weeks: daily Check feeds, weekly Search news, accept/reject, try Find
+1. Owner uses the tool for 1–2 weeks: daily Check feeds, weekly Search news, accept/reject, try Find
    people on website and outreach drafts (first real draft test), record won/lost outcomes.
-3. Tune search queries toward news phrasing ("announces", "appoints", "opens"). Feeds/keywords are editable.
-4. Optional: "change email/password" in Settings so the owner can stop using the test login.
-5. Later: hosting (Cloudflare trial build first), automatic daily feed check.
+2. Tune search queries toward news phrasing ("announces", "appoints", "opens"). Feeds/keywords are editable.
+3. Optional: "change email/password" in Settings so the owner can stop using the test login.
+4. Later: hosting (Cloudflare trial build first), automatic daily feed check.
 
 ## Open questions (from SPEC)
 - Pricing per head; confirm headcount placeholders (15 / 10).

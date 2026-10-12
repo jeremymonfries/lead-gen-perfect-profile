@@ -183,11 +183,44 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--md-sys-color-p
   .state-layer:focus-visible::before { opacity: var(--md-sys-state-focus); }
   .state-layer:active::before { opacity: var(--md-sys-state-pressed); }
 
-  /* Cards: filled (default), outlined, elevated */
-  .card { background: var(--md-sys-color-surface-container-low); color: var(--md-sys-color-on-surface); border-radius: var(--md-sys-shape-md); padding: 16px; }
-  .card h2 { font-size: 1rem; line-height: 1.5rem; font-weight: 500; letter-spacing: .009375rem; color: var(--md-sys-color-on-surface); margin-bottom: 8px; }
-  .card-outlined { background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline-variant); }
-  .card-elevated { background: var(--md-sys-color-surface-container-low); box-shadow: var(--md-sys-elevation-1); }
+  /* Surface tiers.
+     .card  = PRIMARY content (candidate cards, main tables, lead-detail main sections): lowest surface + outline, pops against the page.
+     .panel = SECONDARY / supporting (KPI strip, filters, run toolbar, sidebars, settings fields): filled surface-container, flatter.
+     Never nest a card or panel inside either. */
+  .card { background: var(--md-sys-color-surface-container-lowest); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md); padding: 16px; }
+  .card-outlined { border: 1px solid var(--md-sys-color-outline-variant); }
+  .card-elevated { box-shadow: var(--md-sys-elevation-1); }
+  .panel { background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface); border-radius: var(--md-sys-shape-md); padding: 16px; }
+  /* Card / panel title (inside the container): title-medium, never body style */
+  .card h2, .panel h2, .card-title { font-size: 1rem; line-height: 1.5rem; font-weight: 500; letter-spacing: .009375rem; color: var(--md-sys-color-on-surface); margin-bottom: 12px; }
+  .card h3, .panel h3, .eyebrow { font-size: .75rem; line-height: 1rem; font-weight: 500; letter-spacing: .03125rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 4px; }
+
+  /* Page header: title + optional one-line support left, primary action right */
+  .page-header { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px 16px; }
+  .page-header > :first-child { flex: 1 1 0; min-width: 0; }
+  .page-header > .page-actions { flex: 0 0 auto; }
+  @media (max-width: 479px) { .page-header { flex-wrap: wrap; } .page-header > :first-child { flex-basis: 100%; } }
+  .page-header h1 { font-size: 1.75rem; line-height: 2.25rem; font-weight: 400; color: var(--md-sys-color-on-surface); }
+  .page-header .page-sub { margin-top: 4px; font-size: .875rem; line-height: 1.25rem; letter-spacing: .015625rem; color: var(--md-sys-color-on-surface-variant); max-width: 48rem; }
+  .page-header .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 2.25rem; }
+  /* Section heading OUTSIDE cards */
+  .section-title { font-size: 1.375rem; line-height: 1.75rem; font-weight: 400; color: var(--md-sys-color-on-surface); margin-bottom: 12px; }
+  .section-desc { font-size: .875rem; line-height: 1.25rem; letter-spacing: .015625rem; color: var(--md-sys-color-on-surface-variant); margin: -6px 0 12px; }
+  /* Meta text: body-small, muted; join items with " · " in one line */
+  .meta { font-size: .75rem; line-height: 1rem; letter-spacing: .025rem; color: var(--md-sys-color-on-surface-variant); }
+  .divider { border: 0; border-top: 1px solid var(--md-sys-color-outline-variant); }
+  /* KPI strip: ONE secondary panel, metrics separated by hairlines */
+  .kpi-strip { display: flex; flex-wrap: wrap; overflow: hidden; background: var(--md-sys-color-surface-container); border-radius: var(--md-sys-shape-md); }
+  .kpi { flex: 1 1 8.5rem; padding: 12px 16px; box-shadow: -1px 0 0 var(--md-sys-color-outline-variant), 0 -1px 0 var(--md-sys-color-outline-variant); }
+  .kpi-label { font-size: .75rem; line-height: 1rem; font-weight: 500; letter-spacing: .03125rem; color: var(--md-sys-color-on-surface-variant); }
+  .kpi-value { font-size: 1.5rem; line-height: 2rem; color: var(--md-sys-color-on-surface); }
+  .kpi-sub { font-size: .75rem; line-height: 1rem; color: var(--md-sys-color-on-surface-variant); }
+  .kpi-lg .kpi-value { font-size: 1.75rem; line-height: 2.25rem; }
+  /* Disclosure inside panels */
+  .disclosure > summary { cursor: pointer; font-size: .875rem; line-height: 1.25rem; font-weight: 500; letter-spacing: .00625rem; color: var(--md-sys-color-on-surface); }
+  .disclosure[open] > summary { margin-bottom: 12px; }
+  /* Right-aligned numeric table columns */
+  .tbl .num, .tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
   /* Outlined text field / select / textarea */
   .input {
@@ -240,7 +273,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--md-sys-color-p
   /* Data table */
   .tbl { width: 100%; border-collapse: collapse; font-size: .875rem; line-height: 1.25rem; letter-spacing: .015625rem; }
   .tbl th { text-align: left; font-size: .875rem; line-height: 1.25rem; font-weight: 500; letter-spacing: .00625rem; color: var(--md-sys-color-on-surface-variant); padding: 12px 12px; border-bottom: 1px solid var(--md-sys-color-outline-variant); white-space: nowrap; }
-  .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--md-sys-color-outline-variant); vertical-align: top; }
+  .tbl td { padding: 12px 12px; border-bottom: 1px solid var(--md-sys-color-outline-variant); vertical-align: top; }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
   .tbl tbody tr:hover td { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
 
   .link { color: var(--md-sys-color-primary); text-underline-offset: 3px; }

@@ -25,28 +25,28 @@ export async function PeopleSection({ lead }: { lead: LeadWithRelations }) {
   const why = !company.domain ? 'Add a company website domain to enable this.' : !hasKey ? 'ANTHROPIC_API_KEY is not set.' : null;
 
   return (
-    <section className="card space-y-4">
+    <section className="card space-y-5">
       <h2>People to contact</h2>
 
       <div>
-        <h3 className="label">Who to look for</h3>
+        <h3>Who to look for</h3>
         <ul className="flex flex-wrap gap-2 text-body-medium">
           {roles.map((r) => (
-            <li key={r} className="flex items-center gap-2 rounded-sm border border-outline-variant px-2 py-1">
+            <li key={r} className="badge gap-2 bg-surface-container-high text-on-surface">
               <span>{r}</span>
-              <a className="link text-body-small" href={linkedInPeopleSearchUrl(company.name, r)} {...ext}>Search LinkedIn</a>
+              <a className="link" href={linkedInPeopleSearchUrl(company.name, r)} {...ext}>Search LinkedIn</a>
             </li>
           ))}
         </ul>
-        <p className="mt-1 text-body-small text-on-surface-variant">Opens LinkedIn in your browser — find the person, then add them below.</p>
+        <p className="meta mt-1">Opens LinkedIn in your browser — find the person, then add them below.</p>
       </div>
 
       <div>
-        <h3 className="label">People on file at {company.name}</h3>
+        <h3>People on file at {company.name}</h3>
         {people.length === 0 ? <p className="text-body-medium text-on-surface-variant">No people on file yet.</p> : (
-          <ul className="space-y-2 text-body-medium">
+          <ul className="divide-y divide-outline-variant text-body-medium">
             {people.map((p) => (
-              <li key={p.id} className="flex flex-col gap-1 rounded-sm border border-outline-variant p-2 sm:flex-row sm:items-center sm:justify-between">
+              <li key={p.id} className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-title-small">{p.name}</span>
@@ -81,11 +81,11 @@ export async function PeopleSection({ lead }: { lead: LeadWithRelations }) {
           <FindPeopleButton disabled={!canFind} />
           {why && <span className="text-body-small text-warning">{why}</span>}
         </form>
-        <p className="mt-1 text-body-small text-on-surface-variant">Reads the company&apos;s public team/about pages (respects robots.txt). Names are unverified.</p>
+        <p className="meta mt-1">Reads the company&apos;s public team/about pages (respects robots.txt). Names are unverified.</p>
       </div>
 
       <div>
-        <h3 className="label">Add a person</h3>
+        <h3>Add a person</h3>
         <form action={addPersonAction} className="grid gap-2 sm:grid-cols-4">
           <input type="hidden" name="lead_id" value={lead.id} />
           <input name="name" className="input" placeholder="Name (required)" aria-label="Name" required />
