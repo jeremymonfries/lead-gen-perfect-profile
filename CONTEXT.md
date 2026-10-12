@@ -1,131 +1,128 @@
 # Project context — handoff for new sessions
 
-**Last updated:** 10 October 2026
-Read this first, then `SPEC.md` (v1.3) and `README.md`.
+**Last updated:** 13 October 2026
+Read this first, then `SPEC.md` (v1.3) and `README.md`. `AGENTS.md`: this is Next.js 16 — read
+`node_modules/next/dist/docs/` before writing Next code.
 
 ## What this is
-Internal lead-generation tool for **Perfect Profile** (corporate headshots, Melbourne first).
-It captures leads, checks commercial viability, scores them, recommends a service and drafts
-outreach. Goal: qualified, viable opportunities, not lead volume.
+Internal lead-generation CRM for **Perfect Profile** (corporate headshot photography, Melbourne first).
+Finds and captures leads, checks commercial viability, scores them, finds people to contact, drafts
+outreach, and reports outcomes. Goal: qualified, viable opportunities, not lead volume.
 
-## Key decisions (from the spec review)
-- **Users:** one user now (owner); team planned but not hired. Every lead has `owner_id` and
-  all actions are logged, so multi-user can be added later.
-- **Built by:** the owner using Claude Code. **Workflow: Opus is lead (plans, reviews, verifies);
-  Sonnet sub-agents write the code.** Give each sub-agent a self-contained brief and separate files.
-- **Commercial gate:** target **A$2,000**, hard floor **A$1,400**. A$1,400–1,999 needs a
-  recorded exception reason (→ `strategic_exception`), else `below_threshold`. Unknown → `needs_research`.
-- **Pricing unknown:** value estimated from headcount (placeholders: 10 heads = A$1,400,
-  15 heads = A$2,000; editable in Settings). Pricing fields stay blank until confirmed.
-- **Never sends messages.** Drafts only; user copies into email/LinkedIn. No Spam Act
-  sending tooling; just a `do_not_contact` flag.
-- **LinkedIn:** manual only. User finds people on LinkedIn, logs them in the tool, copies
-  drafts back. No scraping or automation (LinkedIn User Agreement).
-- **Individuals:** kept as a lead type, same scoring as corporate.
-- **Stack:** Next.js 16 (App Router, Cache Components on) + TypeScript + Tailwind 4 +
-  Supabase (Postgres, Auth, RLS) + Claude API (`claude-opus-5-5`, via `ANTHROPIC_MODEL`).
+## How the owner works (important)
+- Owner (non-developer) builds with Claude Code. **Lead agent plans, reviews, verifies in the browser and
+  commits; Sonnet sub-agents write the code** from self-contained briefs with non-overlapping files.
+- Owner is **cost-conscious**: quote costs before paid runs (Claude web search ≈ US$0.12/run) and ask first.
+- Owner likes screenshots of UI changes before committing. Commit + push only when asked
+  (they usually say "commit and push"). End commits with `Co-Authored-By: Claude …`.
+- Explain in plain language; avoid jargon.
+
+## Key decisions
+- **One user now** (owner); every row has `owner_id`, owner-scoped RLS on every table, actions logged.
+- **Commercial gate:** target A$2,000, floor A$1,400; A$1,400–1,999 needs an exception reason
+  (`strategic_exception`), else `below_threshold`; unknown → `needs_research`.
+- **Pricing unknown:** value estimated from headcount (placeholders 10 heads = A$1,400, 15 = A$2,000; Settings).
+- **Never sends messages.** Drafts only; user copies them. `do_not_contact` flag. Spam Act still applies
+  to the user's manual emails.
+- **LinkedIn manual only** — tool only renders people-search links the user clicks; never fetches LinkedIn.
+- **ASX automation dropped** — ASX terms (25 May 2026) forbid automated access without consent (ComNews
+  ~A$1,180/mo). User may read the public announcements page manually; the tool must not fetch it.
+- **Brave Search dropped** — its API terms forbid storing results. Replaced by Claude's web search.
+- **Run locally for now** (decided 11 Oct) until the tool proves useful. Hosting options costed: Cloudflare
+  Workers Paid ~US$5/mo via OpenNext (needs a trial build: OpenNext doesn't yet support Next 16 Node
+  `proxy.ts`), Vercel Pro ~US$20/mo (Hobby is non-commercial), Supabase Free (pauses when idle, no backups)
+  or Pro ~US$25/mo.
+
+## Stack
+Next.js 16 (App Router, **Cache Components on**) + TypeScript + Tailwind 4 + Supabase local (Postgres, Auth, RLS)
++ Anthropic SDK. Claude models chosen per job in Settings (`settings.llm_models`): discovery + website lookup
+default `claude-haiku-5-5`, drafts default `claude-opus-5-5`. `ANTHROPIC_MODEL` env is only a fallback.
 
 ## Repo
 - GitHub (private): https://github.com/jeremymonfries/lead-gen-perfect-profile — branch `main`.
-- Remote uses the SSH host alias `github.com-jmfolio` (see `~/.ssh/config`); plain HTTPS has no credentials
-  and `gh` CLI is not installed.
+- Remote uses SSH host alias `github.com-jmfolio` (`~/.ssh/config`); HTTPS has no credentials; no `gh` CLI.
+- Latest commit: `79d6458 Restyle the interface to Material Design 3`.
 
-## Current state (built, tested locally, committed, pushed)
-- Auth (email/password), owner-scoped row-level security on every table (verified with a
-  second user: no cross-user access).
-- Quick lead capture, leads list with filters and summary strip, lead detail (evidence,
-  score breakdown, value estimate + assumptions, known/unknown, activity timeline,
-  status/estimates/notes/won-lost), settings page.
-- Scoring engine (100 pts) + commercial gate + auto service recommendation.
-- 165 unit tests in total (`npm run test`).
-- Settings save rescores all leads; manual value overrides preserved (`value_is_manual`).
-- Outreach drafts (email ≤150 words, LinkedIn ≤80) from evidence only; do-not-contact guard.
-  **Not yet tested against the real Claude API** (no `ANTHROPIC_API_KEY` set).
-- Migrations: `20261010000000_init.sql`, `20261010000100_lead_value_is_manual.sql`,
-  `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql` (all applied to the local DB).
-- **Outcomes report** at `/reports` (SPEC §8 step 5): funnel by source / lead type / commercial state / score band /
-  signal, won-lead estimate vs actual, discovery effectiveness vs Claude spend; periods all/90d/FY/month.
-  Logic in `src/lib/reports/*` (pure, tested). Useful once won/lost outcomes are recorded.
+## ⚠ Work in progress at handoff (13 Oct 2026)
+- **Information-hierarchy redesign** was launched as a Sonnet sub-agent from the previous session (user feedback:
+  "content appears similar"). It edits `src/app/globals.css` and the (app) pages — **uncommitted**. Check
+  `git status`/`git diff` before starting other UI work. Brief: surface tiers (primary outlined cards vs
+  secondary filled `.panel`s, no cards in cards), page header pattern (headline-medium title + primary action
+  right), section headings outside cards, ONE KPI strip instead of stat tiles, Discovery toolbar with a
+  "Run details" disclosure, structured candidate cards (header/meta/summary · People named | Who to look for
+  · Why · actions footer), two-column lead detail (main outlined cards / lighter side panels), settings sections.
+  To finish: run typecheck/lint/test/build, screenshot each page in light, dark and 375px phone width, show
+  the owner, then commit when they approve. If the diff is broken or incomplete, `git checkout -- .` back to
+  `79d6458` and redo it.
 
-## Running locally (decided 11 Oct 2026: stay local until the tool proves useful; hosting options costed —
-Cloudflare Workers Paid ~US$5/mo via OpenNext (needs a test: Next 16 Node `proxy.ts` not yet supported by OpenNext),
-Vercel Pro ~US$20/mo; Supabase Free pauses when idle, Pro ~US$25/mo)
-- Day to day: double-click `Start Perfect Profile.command` (starts Docker, Supabase, migrations, app; opens browser —
-  usually port 3001 because 3000 is used by another app). Backups: `Back up Perfect Profile.command`
-  (`scripts/backup.sh`, keeps 30 in gitignored `backups/`) or Settings → Download backup (`/api/backup`, JSON).
-- `npx supabase start` (Docker) — local DB with migrations applied; `npx supabase stop` to stop.
-  Apply new migrations without wiping data: `npx supabase migration up` (`db reset` wipes local data).
-- `.env.local` (gitignored) holds local Supabase keys and a local test login
-  (`TEST_USER_EMAIL` / `TEST_USER_PASSWORD`). Add `ANTHROPIC_API_KEY` (drafts, discovery, news search) there, then restart the dev server. Not set yet.
-- `npm run dev` (or the `.claude/launch.json` preview config). Checks: `npm run typecheck`,
-  `npm run lint`, `npm run test`, `npm run build`.
-- Next 16 notes: per-user pages stream behind `<Suspense>`; `requireUser()` calls
-  `connection()`; session refresh lives in `src/proxy.ts`; `/` → `/leads` redirect is in `next.config.ts`;
-  `export const maxDuration` on a page is accepted with Cache Components (used on `/discovery`).
-- Port 3000 was taken by another process on 10 Oct, so the preview used an auto-assigned port.
+## What's built (all committed)
+- **Leads CRM:** quick capture, list with filters + summary, lead detail (evidence, score breakdown, value
+  estimate, activity timeline, status/estimates/notes/won-lost), settings (rescores all leads on save;
+  manual value overrides kept via `value_is_manual`).
+- **Scoring:** 100 pts + commercial gate + service recommendation (`src/lib/scoring`).
+- **Outreach drafts** (email ≤150 words, LinkedIn ≤80) from evidence + approved claims only.
+  Not yet tried with the real API.
+- **Discovery** (`/discovery`), review queue of candidates:
+  - **Check feeds** (daily, ~US$0.001–0.007/run): 8 RSS feeds (Australasian Lawyer, Elite Agent, Financial
+    Newswire, Broker News, ARN, Government News, Inside Retail, Campaign Brief; verified 11 Oct). Keyword
+    pre-filter, max 10 items/feed/run, 14-day window. Feeds/keywords/cap editable on the page.
+  - **Search news** (weekly, ~US$0.12/run): Claude `web_search_20250305`, one search per query (max 15),
+    Melbourne-localised, "(Month YYYY)" appended; relative `page_age` parsed (`parsePageAge`); results
+    older than 45 days or undated are dropped. Default queries target Melbourne accounting/law/offices/CEOs.
+  - Claude (`classify.ts`) keeps items with a fresh buying signal, extracts org, location, people named
+    (appointee / new partner / departing / spokesperson). Trade-feed items aren't rejected just for not
+    stating Australia (location "unknown"). Job boards and topic/index pages are rejected. Appointment
+    **roundups** are kept (`is_roundup`: Open article / Mark reviewed, no Accept).
+  - Every URL is processed once (irrelevant ones stored as `filtered`); the same story from several sources
+    is merged (`duplicate_of`); queue sorted Melbourne first.
+  - **Accept** → lead (source `news`) + named people as unverified contacts; appointee/new partner (else
+    spokesperson) becomes primary; departing never primary.
+- **People finding** (lead page): buyer roles per signal with LinkedIn search links, people on file
+  ("Set as primary", "Add a person"), **Find people on website** (public team/about pages, max 4, robots.txt,
+  SSRF guard incl. private-IP DNS check; names + titles only).
+- **Spend tracking:** every Claude call recorded in `llm_usage` (tokens, web searches, cost). Shown per
+  run, month-to-date on Discovery and Settings.
+- **Outcomes report** (`/reports`): funnel by source / lead type / commercial state / score band / signal,
+  won-lead estimate vs actual, discovery effectiveness vs spend; periods all/90d/FY/month.
+- **Material 3 UI:** tokens generated from brand oxblood #5E2A2E (`npm run theme` →
+  `src/app/m3-tokens.css`, script `scripts/generate-m3-theme.mjs`), light + dark follow macOS, Roboto,
+  component classes in `src/app/globals.css`. On-container text darkened to ≥7:1.
+- **Launcher + backups:** `Start Perfect Profile.command`, `Back up Perfect Profile.command`,
+  Settings → Download backup (`/api/backup`).
+- **Tests:** 165 unit tests (`npm run test`).
+- **Migrations** (all applied locally): `20261010000000_init`, `…0100_lead_value_is_manual`,
+  `20261011000000_news_discovery`, `20261012000000_rss_and_people`, `20261013000000_dedupe_and_usage`,
+  `20261014000000_feed_cap`, `20261015000000_candidate_roundup`, `20261016000000_web_search_usage`.
 
-## Discovery: RSS feeds + optional news search (built 10 Oct 2026; not yet run with a real Claude key)
-ASX automation was dropped: its terms (updated 25 May 2026) prohibit automated access without written
-consent (ComNews licence is ~A$1,180/month). The public announcements page
-(asx.com.au/markets/trade-our-cash-market/announcements) may be read **manually** and leads logged by hand;
-the tool must not fetch or scrape it.
+## Running locally
+- Owner double-clicks **Start Perfect Profile.command** (starts Docker, local Supabase, applies pending
+  migrations, starts the app, opens the browser — usually http://localhost:3001 because 3000 is used by
+  another app, "Arbitrage Monitor").
+- Login = local test user in `.env.local` (`TEST_USER_EMAIL` / `TEST_USER_PASSWORD`; don't repeat these
+  values in chat). All current data belongs to that user.
+- `.env.local` (gitignored) has local Supabase keys and **`ANTHROPIC_API_KEY` (set 11 Oct, workspace-scoped,
+  expires around 10 Nov 2026 if a 30-day expiry was chosen)**.
+- **Never run `npx supabase db reset`** (wipes data). Apply migrations with `npx supabase migration up`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`.
+- Next 16 notes: per-user pages stream behind `<Suspense>`; `requireUser()` calls `connection()`; session
+  refresh in `src/proxy.ts`; `/` → `/leads` redirect in `next.config.ts`; `export const maxDuration` works on
+  pages with Cache Components (used on `/discovery` and the lead page); `usePathname()` in the nav needs a
+  `<Suspense>` wrapper.
 
-`/discovery` (manual "Run discovery now"; no cron yet):
-- **RSS feeds (main, free)** — Settings `discovery_feeds`, editable on the page. Defaults verified working 10 Oct:
-  Campaign Brief, Financial Newswire, Government News, Mediaweek, realcommercial.com.au news, Inside Retail
-  (114 recent items → 40 pass the keyword filter → ~3 Claude calls/run). Items must match `discovery_keywords`
-  before Claude reads them. Not usable: Lawyers Weekly / Accountants Daily (no feed); Business News Australia,
-  HRM, Inside HR, Vic Tenders (Cloudflare — never bypass). The Age / ABC skipped (personal-use feed terms likely).
-- **Search news (separate, weekly)** — Claude's server-side web search (`claude-search.ts`), one search per query in
-  Settings `discovery_queries` (max 15 per run), ~US$0.01 per query plus tokens. Replaced Brave (its terms forbid storing results).
-- Claude (`classify.ts`) classifies from title/snippet only and lists **people named** (appointee / new partner /
-  departing / spokesperson). Irrelevant items kept as `filtered` so a URL is never paid for twice.
-- Accept → lead (source `news`) + named people saved as unverified contacts; appointee/new partner (else
-  spokesperson) becomes primary contact; departing people never primary.
-
-Classifier rules (tuned 11 Oct 2026 on real runs): items from Australian trade feeds aren't rejected just for not
-stating an Australian presence (location "unknown"); rejected only if the snippet places the org/role solely overseas.
-Appointment **roundups** are kept with `is_roundup` (no Accept button — open the article, add leads manually, mark
-reviewed). Same story from several feeds is merged (`duplicate_of`); each feed is capped at 10 items/run (editable).
-Default feeds (verified 11 Oct): Australasian Lawyer, Elite Agent, Financial Newswire, Broker News, ARN, Government
-News, Inside Retail, Campaign Brief. Real runs cost ~US$0.001–0.007 each on Haiku (actual spend tracked in `llm_usage`).
-
-Search news (Claude web search, replaced Brave on 11 Oct 2026 — Brave's terms forbid storing results): separate
-"Search news" button, one `web_search_20250305` call per query (max_uses 1, Melbourne user_location) on the
-discovery model. `page_age` comes back relative ("156 days ago") — parsed by `parsePageAge`; results older than
-45 days or undated are dropped; query gets "(Month YYYY)" appended. Real run: 10 searches → 10 fresh results →
-4 candidates (Grant Thornton, BDO Melbourne), US$0.12. Suggest weekly; tune queries toward news phrasing.
-
-## People finding
-- Lead page "People to contact": buyer roles per signal (`src/lib/discovery/buyer-roles.ts`, hypotheses) with
-  LinkedIn people-search links (open in the user's browser; tool never fetches LinkedIn), people on file with
-  "Set as primary", manual "Add a person".
-- "Find people on website" (`src/lib/discovery/website.ts`): on demand per lead; reads the company's public
-  team/about pages (max 4), respects robots.txt, same-site redirects only, refuses IP literals/local hosts and
-  domains resolving to private IPs; Claude extracts names + titles only (no emails/phones), saved unverified.
-- Spam Act still applies when the user emails people manually (business address published + role-relevant =
-  inferred consent; bought lists riskier). Paid contact data (Apollo/Hunter) deliberately not built.
-
-Code: `src/lib/discovery/*` (pure, tested), `src/lib/db/{discovery,contacts}.ts`, `src/app/(app)/discovery/*`,
-`src/app/(app)/leads/people-actions.ts`, `src/app/(app)/leads/[id]/people-section.tsx`.
-Migrations: `20261011000000_news_discovery.sql`, `20261012000000_rss_and_people.sql`.
-
-## Claude cost control
-- Models chosen per job on the Settings page (`settings.llm_models`): discovery + website lookup default
-  `claude-haiku-5-5`, drafts default `claude-opus-5-5`. `ANTHROPIC_MODEL` env is only a fallback.
-- Estimates (11 Oct 2026 prices): a month of daily runs + 20 lookups + 40 drafts ≈ US$0.20 on Haiku vs ≈ US$5.60
-  all-Opus (drafts on Opus add ~US$1). User is cost-conscious: recommend a Console spend limit.
+## Current data (13 Oct)
+About 10 leads (9 accepted from discovery + 1 test lead), ~22 pending candidates, Claude spend ~US$0.38
+this month. No won/lost outcomes recorded yet, so the report is mostly empty.
 
 ## Suggested next steps
-1. Add `ANTHROPIC_API_KEY` and do a real discovery run (feeds and search both need only the Anthropic key); tune feeds, keywords and the
-   classifier prompt from results; try the website lookup on a few accepted leads.
-2. Test outreach drafts against the real Claude API.
-4. Optional: "ASX announcement" quick-capture shortcut for manually spotted appointments.
+1. Finish and commit the hierarchy redesign (see Work in progress).
+2. Owner uses the tool for 1–2 weeks: daily Check feeds, weekly Search news, accept/reject, try Find
+   people on website and outreach drafts (first real draft test), record won/lost outcomes.
+3. Tune search queries toward news phrasing ("announces", "appoints", "opens"). Feeds/keywords are editable.
+4. Optional: "change email/password" in Settings so the owner can stop using the test login.
+5. Later: hosting (Cloudflare trial build first), automatic daily feed check.
 
-## Other open items
-- Confirm pricing (rough per-head figure) and headcount placeholders (15 / 10).
+## Open questions (from SPEC)
+- Pricing per head; confirm headcount placeholders (15 / 10).
 - Melbourne boundary (metro only? Geelong?).
-- Approved service claims and turnaround times from perfectprofile.com.au (drafts may only use approved claims).
-- Hosted Supabase project + real keys for actual use.
-- Possible LinkedIn helpers: paste-a-URL capture; follow-up tracking (connection sent /
-  accepted / replied + reminders).
+- Approved service claims and turnaround times from perfectprofile.com.au (drafts may only use approved
+  claims; currently none).
