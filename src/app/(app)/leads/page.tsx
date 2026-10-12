@@ -15,7 +15,7 @@ export default function LeadsPage({ searchParams }: { searchParams: Promise<SP> 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Leads</h1>
+        <h1 className="text-headline-small">Leads</h1>
         <Link href="/leads/new" className="btn btn-primary">New lead</Link>
       </div>
       <Suspense fallback={<LeadsSkeleton />}>
@@ -29,10 +29,10 @@ function LeadsSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading leads">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-gray-100" />)}
+        {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-surface-container-high" />)}
       </div>
-      <div className="card h-24 animate-pulse bg-gray-100" />
-      <div className="card h-64 animate-pulse bg-gray-100" />
+      <div className="card h-24 animate-pulse bg-surface-container-high" />
+      <div className="card h-64 animate-pulse bg-surface-container-high" />
     </div>
   );
 }
@@ -68,12 +68,12 @@ async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="card"><div className="text-xs text-gray-500">Priority queue (qualified + strategic exception)</div><div className="text-2xl font-semibold">{prioritised}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Awaiting review (status new)</div><div className="text-2xl font-semibold">{awaiting}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Won leads</div><div className="text-2xl font-semibold">{won.length}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Actual revenue (won, recorded actuals)</div><div className="text-2xl font-semibold">{fmtAUD(actual)}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Priority queue (qualified + strategic exception)</div><div className="text-headline-small">{prioritised}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Awaiting review (status new)</div><div className="text-headline-small">{awaiting}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Won leads</div><div className="text-headline-small">{won.length}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Actual revenue (won, recorded actuals)</div><div className="text-headline-small">{fmtAUD(actual)}</div></div>
       </div>
-      <p className="text-xs text-gray-500">Values in the table below are estimates (A$), not actuals, until a lead is won and revenue is recorded.</p>
+      <p className="text-body-small text-on-surface-variant">Values in the table below are estimates (A$), not actuals, until a lead is won and revenue is recorded.</p>
 
       <form method="get" className="card grid grid-cols-2 gap-2 md:grid-cols-7">
         <input name="q" defaultValue={filters.q} placeholder="Search…" className="input col-span-2 md:col-span-2" />
@@ -83,35 +83,35 @@ async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
         {sel('lead_type', LEAD_TYPES, filters.lead_type)}
         <input name="min_score" type="number" min={0} max={100} defaultValue={filters.min_score} placeholder="Min score" className="input" />
         <div className="col-span-2 flex gap-2 md:col-span-7">
-          <button className="btn btn-primary" type="submit">Filter</button>
-          {hasFilter && <Link href="/leads" className="btn">Clear</Link>}
+          <button className="btn btn-tonal" type="submit">Filter</button>
+          {hasFilter && <Link href="/leads" className="btn btn-text">Clear</Link>}
         </div>
       </form>
 
       {shown.length === 0 ? (
-        <div className="card text-center text-gray-600">
+        <div className="card text-center text-on-surface-variant">
           {hasFilter ? 'No leads match these filters.' : 'No leads yet.'}{' '}
           <Link href="/leads/new" className="link">Add a new lead</Link>
         </div>
       ) : (
         <div className="card overflow-x-auto p-0">
-          <table className="tbl">
-            <thead><tr><th>Lead</th><th>City</th><th>Type</th><th>Source</th><th>Latest signal</th><th>Score</th><th>Commercial</th><th>Est. value (AUD)</th><th>Service</th><th>Status</th></tr></thead>
+          <table className="tbl min-w-[64rem]">
+            <thead><tr><th className="min-w-[17rem]">Lead</th><th>City</th><th>Type</th><th>Source</th><th>Latest signal</th><th>Score</th><th>Commercial</th><th>Est. value (AUD)</th><th>Service</th><th>Status</th></tr></thead>
             <tbody>
               {shown.map((l) => {
                 const sig = l.latest_signal;
                 return (
                   <tr key={l.id}>
-                    <td><Link href={`/leads/${l.id}`} className="link font-medium">{l.title}</Link>{l.company && <div className="text-xs text-gray-500">{l.company.name}</div>}</td>
+                    <td className="min-w-[17rem]"><Link href={`/leads/${l.id}`} className="link text-title-small">{l.title}</Link>{l.company && <div className="text-body-small text-on-surface-variant">{l.company.name}</div>}</td>
                     <td>{l.company?.city ?? '—'}</td>
-                    <td>{l.lead_type}</td>
-                    <td>{l.source}</td>
-                    <td>{sig ? <>{label(sig.signal_type)}<div className="text-xs text-gray-500">{fmtDate(sig.published_at)}</div></> : '—'}</td>
+                    <td className="whitespace-nowrap">{l.lead_type}</td>
+                    <td className="whitespace-nowrap">{l.source}</td>
+                    <td>{sig ? <>{label(sig.signal_type)}<div className="text-body-small text-on-surface-variant">{fmtDate(sig.published_at)}</div></> : '—'}</td>
                     <td>{l.score == null ? '—' : <span className="whitespace-nowrap">{l.score} <BandBadge band={scoreBand(l.score, settings)} /></span>}</td>
-                    <td><StateBadge state={l.commercial_state} /></td>
+                    <td className="whitespace-nowrap"><StateBadge state={l.commercial_state} /></td>
                     <td className="whitespace-nowrap">{fmtRange(l.est_value_low, l.est_value_high)}</td>
                     <td>{l.recommended_service ?? '—'}</td>
-                    <td><StatusBadge status={l.status} /></td>
+                    <td className="whitespace-nowrap"><StatusBadge status={l.status} /></td>
                   </tr>
                 );
               })}
@@ -119,7 +119,7 @@ async function LeadsContent({ searchParams }: { searchParams: Promise<SP> }) {
           </table>
         </div>
       )}
-      {leads.length > MAX_ROWS && <p className="text-xs text-gray-500">Showing first {MAX_ROWS} of {leads.length}. Narrow with filters.</p>}
+      {leads.length > MAX_ROWS && <p className="text-body-small text-on-surface-variant">Showing first {MAX_ROWS} of {leads.length}. Narrow with filters.</p>}
     </div>
   );
 }

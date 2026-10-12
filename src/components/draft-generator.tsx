@@ -41,16 +41,16 @@ export function DraftGenerator({ leadId, disabled }: { leadId: string; disabled?
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <button className="btn" disabled={disabled || !!loading} onClick={() => generate('email')}>{loading === 'email' ? 'Generating…' : 'Generate email draft'}</button>
+        <button className="btn btn-primary" disabled={disabled || !!loading} onClick={() => generate('email')}>{loading === 'email' ? 'Generating…' : 'Generate email draft'}</button>
         <button className="btn" disabled={disabled || !!loading} onClick={() => generate('linkedin')}>{loading === 'linkedin' ? 'Generating…' : 'Generate LinkedIn draft'}</button>
       </div>
-      {disabled && <p className="text-xs text-red-700">Drafting is disabled: contact is flagged do not contact.</p>}
-      {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+      {disabled && <p className="text-body-small text-error">Drafting is disabled: contact is flagged do not contact.</p>}
+      {error && <p className="text-body-medium text-error" role="alert">{error}</p>}
       {draft && (
-        <div className="rounded border border-[var(--line)] bg-gray-50 p-3">
-          <div className="mb-1 text-xs text-gray-500">{draft.channel}{draft.subject ? ` · ${draft.subject}` : ''}</div>
-          <pre className="whitespace-pre-wrap font-sans text-sm">{draft.body}</pre>
-          <button className="btn mt-2" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+        <div className="rounded-md bg-surface-container-high p-3">
+          <div className="mb-1 text-body-small text-on-surface-variant">{draft.channel}{draft.subject ? ` · ${draft.subject}` : ''}</div>
+          <pre className="whitespace-pre-wrap font-sans text-body-medium">{draft.body}</pre>
+          <button className="btn btn-tonal mt-2" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
         </div>
       )}
     </div>

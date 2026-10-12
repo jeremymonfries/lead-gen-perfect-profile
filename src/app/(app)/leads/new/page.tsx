@@ -15,7 +15,7 @@ function F({ name, children, type = 'text', required, defaultValue }: { name: st
 export default function NewLeadPage() {
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">New lead</h1>
+      <h1 className="text-headline-small">New lead</h1>
       <Suspense fallback={<FormSkeleton />}>
         <NewLeadForm />
       </Suspense>
@@ -26,7 +26,7 @@ export default function NewLeadPage() {
 function FormSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading form">
-      {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-28 animate-pulse bg-gray-100" />)}
+      {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-28 animate-pulse bg-surface-container-high" />)}
     </div>
   );
 }

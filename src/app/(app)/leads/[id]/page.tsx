@@ -23,7 +23,7 @@ export const maxDuration = 120;
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="space-y-4">
-      <Link href="/leads" className="link text-xs">← Leads</Link>
+      <Link href="/leads" className="link text-body-small">← Leads</Link>
       <Suspense fallback={<LeadSkeleton />}>
         <LeadContent params={params} />
       </Suspense>
@@ -34,13 +34,13 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 function LeadSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading lead">
-      <div className="h-7 w-64 animate-pulse rounded bg-gray-200" />
+      <div className="h-7 w-64 animate-pulse rounded-sm bg-surface-container-highest" />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-gray-100" />)}
+          {Array.from({ length: 4 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-surface-container-high" />)}
         </div>
         <div className="space-y-4">
-          {Array.from({ length: 3 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-gray-100" />)}
+          {Array.from({ length: 3 }, (_, i) => <div key={i} className="card h-32 animate-pulse bg-surface-container-high" />)}
         </div>
       </div>
     </div>
@@ -71,10 +71,10 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-4">
-      {dnc && <div className="rounded border border-red-300 bg-red-50 px-3 py-2 font-semibold text-red-800">DO NOT CONTACT — this contact is flagged. Do not send outreach.</div>}
+      {dnc && <div className="banner banner-error text-title-small">DO NOT CONTACT — this contact is flagged. Do not send outreach.</div>}
       <div>
-        <h1 className="text-xl font-semibold">{lead.title}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+        <h1 className="text-headline-small">{lead.title}</h1>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-body-medium text-on-surface-variant">
           <StatusBadge status={lead.status} /><StateBadge state={lead.commercial_state} />
           {lead.score != null && <span>Score {lead.score} <BandBadge band={scoreBand(lead.score, settings)} /></span>}
           <span>{lead.lead_type} · source {lead.source} · created {fmtDate(lead.created_at)}</span>
@@ -92,16 +92,16 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
               <div><dt className="label">Exception reason</dt><dd>{lead.exception_reason ?? '—'}</dd></div>
               {lead.actual_revenue != null && <div><dt className="label">Actual revenue</dt><dd>{fmtAUD(lead.actual_revenue)}</dd></div>}
             </dl>
-            {lead.notes && <p className="mt-2 whitespace-pre-wrap text-sm">{lead.notes}</p>}
+            {lead.notes && <p className="mt-2 whitespace-pre-wrap text-body-medium">{lead.notes}</p>}
           </section>
 
           <section className="card">
             <h2>Company &amp; contact</h2>
-            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2 text-body-medium">
               <div>
                 <div className="label">Company</div>
                 {lead.company ? <>
-                  <div className="font-medium">{lead.company.name}</div>
+                  <div className="text-title-small">{lead.company.name}</div>
                   <div>{[lead.company.city, lead.company.state].filter(Boolean).join(', ') || '—'}</div>
                   {lead.company.domain && <a className="link" href={`https://${lead.company.domain}`} target="_blank" rel="noreferrer">{lead.company.domain}</a>}
                 </> : '—'}
@@ -109,7 +109,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
               <div>
                 <div className="label">Contact</div>
                 {lead.contact ? <>
-                  <div className="font-medium">{lead.contact.name}{lead.contact.verified && ' ✓'}</div>
+                  <div className="text-title-small">{lead.contact.name}{lead.contact.verified && ' ✓'}</div>
                   <div>{lead.contact.title ?? '—'}</div>
                   {lead.contact.email && <div>{lead.contact.email}</div>}
                   {lead.contact.linkedin_url && <a className="link" href={lead.contact.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}
@@ -122,15 +122,15 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
 
           <section className="card">
             <h2>Evidence &amp; signals</h2>
-            {signals.length === 0 ? <p className="text-sm text-gray-500">No signals recorded.</p> : (
-              <ul className="space-y-2 text-sm">
+            {signals.length === 0 ? <p className="text-body-medium text-on-surface-variant">No signals recorded.</p> : (
+              <ul className="space-y-2 text-body-medium">
                 {signals.map((s) => (
                   <li key={s.id}>
-                    <span className="badge bg-gray-100">{label(s.signal_type)}</span>{' '}
-                    <span className="text-gray-500">{fmtDate(s.published_at)} ({s.date_confidence})</span>
-                    {s.contribution != null && <span className="text-gray-500"> · +{s.contribution}</span>}
+                    <span className="badge bg-surface-container-high">{label(s.signal_type)}</span>{' '}
+                    <span className="text-on-surface-variant">{fmtDate(s.published_at)} ({s.date_confidence})</span>
+                    {s.contribution != null && <span className="text-on-surface-variant"> · +{s.contribution}</span>}
                     <div>{s.summary}</div>
-                    {s.source_url && <a className="link break-all text-xs" href={s.source_url} target="_blank" rel="noreferrer">{s.source_url}</a>}
+                    {s.source_url && <a className="link break-all text-body-small" href={s.source_url} target="_blank" rel="noreferrer">{s.source_url}</a>}
                   </li>
                 ))}
               </ul>
@@ -139,28 +139,28 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
 
           <section className="card">
             <h2>Score breakdown (ranking only, not a probability)</h2>
-            {!bd ? <p className="text-sm text-gray-500">Not scored yet.</p> : (
+            {!bd ? <p className="text-body-medium text-on-surface-variant">Not scored yet.</p> : (
               <>
                 <table className="tbl max-w-md">
                   <tbody>
                     {([['Buying signal', bd.signal, 25], ['Viable project', bd.viability, 25], ['Service fit', bd.fit, 20], ['Timing / freshness', bd.timing, 15], ['Evidence & buyer', bd.evidence, 15]] as const).map(([n, v, max]) => (
                       <tr key={n}><td>{n}</td><td className="text-right">{v} / {max}</td></tr>
                     ))}
-                    <tr className="font-semibold"><td>Total</td><td className="text-right">{bd.total} / 100</td></tr>
+                    <tr className="text-title-small"><td>Total</td><td className="text-right">{bd.total} / 100</td></tr>
                   </tbody>
                 </table>
-                {bd.notes.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm text-gray-600">{bd.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
+                {bd.notes.length > 0 && <ul className="mt-2 list-disc pl-5 text-body-medium text-on-surface-variant">{bd.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
               </>
             )}
           </section>
 
           <section className="card">
             <h2>Activity</h2>
-            {activities.length === 0 ? <p className="text-sm text-gray-500">No activity.</p> : (
-              <ul className="space-y-2 text-sm">
+            {activities.length === 0 ? <p className="text-body-medium text-on-surface-variant">No activity.</p> : (
+              <ul className="space-y-2 text-body-medium">
                 {activities.map((a) => (
-                  <li key={a.id} className="border-l-2 border-[var(--line)] pl-3">
-                    <span className="font-medium">{label(a.activity_type)}</span> <span className="text-xs text-gray-500">{fmtDateTime(a.created_at)}</span>
+                  <li key={a.id} className="border-l-2 border-outline-variant pl-3">
+                    <span className="text-title-small">{label(a.activity_type)}</span> <span className="text-body-small text-on-surface-variant">{fmtDateTime(a.created_at)}</span>
                     {a.detail && <div className="whitespace-pre-wrap">{a.detail}</div>}
                   </li>
                 ))}
@@ -169,7 +169,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             <form action={addNote} className="mt-3 flex gap-2">
               <Hidden id={lead.id} />
               <input name="note" placeholder="Add a note…" className="input" required />
-              <button className="btn" type="submit">Add note</button>
+              <button className="btn btn-tonal" type="submit">Add note</button>
             </form>
           </section>
 
@@ -179,8 +179,8 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             {drafts.length > 0 && (
               <ul className="mt-3 space-y-3">
                 {drafts.map((d) => (
-                  <li key={d.id} className="rounded border border-[var(--line)] p-2 text-sm">
-                    <div className="mb-1 text-xs text-gray-500">{d.channel}{d.subject ? ` · ${d.subject}` : ''} · {fmtDateTime(d.created_at)} · {d.copied_at ? `copied ${fmtDateTime(d.copied_at)}` : 'not copied'}</div>
+                  <li key={d.id} className="rounded-sm border border-outline-variant p-2 text-body-medium">
+                    <div className="mb-1 text-body-small text-on-surface-variant">{d.channel}{d.subject ? ` · ${d.subject}` : ''} · {fmtDateTime(d.created_at)} · {d.copied_at ? `copied ${fmtDateTime(d.copied_at)}` : 'not copied'}</div>
                     <pre className="whitespace-pre-wrap font-sans">{d.body}</pre>
                   </li>
                 ))}
@@ -193,13 +193,13 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
           <section className="card">
             <h2>Commercial</h2>
             <div className="mb-1"><StateBadge state={lead.commercial_state} /></div>
-            <div className="text-lg font-semibold">{fmtRange(lead.est_value_low, lead.est_value_high)} <span className="text-xs font-normal text-gray-500">estimate</span></div>
-            <div className="text-xs text-gray-500">Basis: {label(basis)}. Target {fmtAUD(settings.target_value)}, floor {fmtAUD(settings.floor_value)}.</div>
-            {lead.assumptions && <p className="mt-1 text-sm">{lead.assumptions}</p>}
-            {settings.price_per_head == null && <p className="mt-1 text-xs text-amber-700">Pricing unconfirmed — value is a headcount proxy.</p>}
+            <div className="text-title-large">{fmtRange(lead.est_value_low, lead.est_value_high)} <span className="text-body-small text-on-surface-variant">estimate</span></div>
+            <div className="text-body-small text-on-surface-variant">Basis: {label(basis)}. Target {fmtAUD(settings.target_value)}, floor {fmtAUD(settings.floor_value)}.</div>
+            {lead.assumptions && <p className="mt-1 text-body-medium">{lead.assumptions}</p>}
+            {settings.price_per_head == null && <p className="mt-1 text-body-small text-warning">Pricing unconfirmed — value is a headcount proxy.</p>}
             <h3 className="label mt-3">Known vs unknown</h3>
-            <ul className="text-sm">
-              {known.map(([n, ok]) => <li key={n} className={ok ? 'text-green-700' : 'text-amber-700'}>{ok ? '✓' : '?'} {n}{ok ? '' : ' — unknown'}</li>)}
+            <ul className="text-body-medium">
+              {known.map(([n, ok]) => <li key={n} className={ok ? 'text-success' : 'text-warning'}>{ok ? '✓' : '?'} {n}{ok ? '' : ' — unknown'}</li>)}
             </ul>
           </section>
 
@@ -208,7 +208,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             <form action={changeStatus} className="flex gap-2">
               <Hidden id={lead.id} />
               <select name="status" defaultValue={lead.status} className="input">{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-              <button className="btn" type="submit">Update</button>
+              <button className="btn btn-tonal" type="submit">Update</button>
             </form>
           </section>
 
@@ -220,7 +220,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
               <Field name="est_locations" type="number" defaultValue={lead.est_locations}>Locations</Field>
               <Field name="value_low" type="number" defaultValue={manualValue ? lead.est_value_low : null}>Value low override (A$)</Field>
               <Field name="value_high" type="number" defaultValue={manualValue ? lead.est_value_high : null}>Value high override (A$)</Field>
-              <p className="col-span-2 text-xs text-gray-500">Leave value blank to use the automatic estimate.</p>
+              <p className="col-span-2 text-body-small text-on-surface-variant">Leave value blank to use the automatic estimate.</p>
               <div className="col-span-2"><Field name="exception_reason" defaultValue={lead.exception_reason}>Exception reason</Field></div>
               <div className="col-span-2">
                 <label className="label" htmlFor="recommended_service">Recommended service</label>
@@ -240,7 +240,7 @@ async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
             <form action={recordOutcome} className="mb-3 flex items-end gap-2">
               <Hidden id={lead.id} /><input type="hidden" name="outcome" value="won" />
               <div className="flex-1"><Field name="actual_revenue" type="number" step="0.01" defaultValue={lead.actual_revenue}>Won — actual revenue (A$)</Field></div>
-              <button className="btn" type="submit">Mark won</button>
+              <button className="btn btn-tonal" type="submit">Mark won</button>
             </form>
             <form action={recordOutcome} className="flex items-end gap-2">
               <Hidden id={lead.id} /><input type="hidden" name="outcome" value="lost" />

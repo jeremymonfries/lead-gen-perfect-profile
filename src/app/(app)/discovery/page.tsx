@@ -24,18 +24,18 @@ const TABS: { id: CandidateStatus; name: string; empty: string }[] = [
   { id: 'filtered', name: 'Filtered out by Claude', empty: 'Nothing was filtered out.' },
 ];
 const LOC_CLASS: Record<LocationMatch, string> = {
-  melbourne: 'bg-green-100 text-green-800',
-  australia_other: 'bg-blue-100 text-blue-800',
-  outside_australia: 'bg-gray-100 text-gray-700',
-  unknown: 'bg-amber-100 text-amber-800',
+  melbourne: 'bg-success-container text-on-success-container',
+  australia_other: 'bg-tertiary-container text-on-tertiary-container',
+  outside_australia: 'bg-surface-container-high text-on-surface-variant',
+  unknown: 'bg-warning-container text-on-warning-container',
 };
 
 export default function DiscoveryPage({ searchParams }: { searchParams: Promise<SP> }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Discovery</h1>
-        <p className="text-sm text-gray-600">Feeds and news search find candidate leads; Claude filters them and names the people involved. Nothing is contacted — you accept or reject each.</p>
+        <h1 className="text-headline-small">Discovery</h1>
+        <p className="text-body-medium text-on-surface-variant">Feeds and news search find candidate leads; Claude filters them and names the people involved. Nothing is contacted — you accept or reject each.</p>
       </div>
       <Suspense fallback={<DiscoverySkeleton />}>
         <DiscoveryContent searchParams={searchParams} />
@@ -47,11 +47,11 @@ export default function DiscoveryPage({ searchParams }: { searchParams: Promise<
 function DiscoverySkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading discovery">
-      <div className="card h-20 animate-pulse bg-gray-100" />
+      <div className="card h-20 animate-pulse bg-surface-container-high" />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {Array.from({ length: 5 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-gray-100" />)}
+        {Array.from({ length: 5 }, (_, i) => <div key={i} className="card h-16 animate-pulse bg-surface-container-high" />)}
       </div>
-      <div className="card h-48 animate-pulse bg-gray-100" />
+      <div className="card h-48 animate-pulse bg-surface-container-high" />
     </div>
   );
 }
@@ -74,7 +74,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
   return (
     <div className="space-y-4">
       {!hasAnthropic && (
-        <div className="card border-amber-300 bg-amber-50 text-sm text-amber-900">
+        <div className="banner banner-warning">
           Missing ANTHROPIC_API_KEY. Add it to .env.local and restart the server to enable discovery.
         </div>
       )}
@@ -87,100 +87,100 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
           <form action={runSearchAction}>
             <RunButton secondary disabled={!canSearch || active} label="Search news" pendingLabel="Searching… up to two minutes" />
           </form>
-          {active && <span className="text-sm text-gray-600">A run is already in progress.</span>}
-          {hasAnthropic && settings.discovery_feeds.length === 0 && <span className="text-sm text-gray-600">Add at least one feed to check feeds.</span>}
+          {active && <span className="text-body-medium text-on-surface-variant">A run is already in progress.</span>}
+          {hasAnthropic && settings.discovery_feeds.length === 0 && <span className="text-body-medium text-on-surface-variant">Add at least one feed to check feeds.</span>}
         </div>
-        <p className="text-xs text-gray-500">Search news: searches the web for each query below using Claude web search — about US$0.01 per query plus a little Claude usage (≈US$0.15 for 10 queries). Weekly is plenty.</p>
-        <p className="text-xs text-gray-500">Last news search: {searchRun ? fmtDateTime(searchRun.started_at) : 'never'}</p>
-        <p className="text-xs text-gray-500">Claude spend this month: {fmtUsd(usage.total)}</p>
+        <p className="text-body-small text-on-surface-variant">Search news: searches the web for each query below using Claude web search — about US$0.01 per query plus a little Claude usage (≈US$0.15 for 10 queries). Weekly is plenty.</p>
+        <p className="text-body-small text-on-surface-variant">Last news search: {searchRun ? fmtDateTime(searchRun.started_at) : 'never'}</p>
+        <p className="text-body-small text-on-surface-variant">Claude spend this month: {fmtUsd(usage.total)}</p>
         {run ? (
-          <div className="text-sm text-gray-700">
+          <div className="text-body-medium text-on-surface-variant">
             <div>
               Last run {fmtDateTime(run.started_at)} · {run.status} · {plural(run.feeds_checked, 'feed')} checked · {plural(run.feed_items, 'feed item')} · {plural(run.prefiltered_out, 'item')} filtered by keywords · {plural(run.capped_out ?? 0, 'item')} capped · {plural(run.results_found, 'new result')} · {plural(run.candidates_created, 'candidate')} · {plural(run.duplicates_merged ?? 0, 'duplicate')} merged · {plural(run.search_requests, 'search request')} · {plural(run.llm_calls, 'Claude call')} · Claude cost {fmtUsd(Number(run.cost_usd) || 0)}
             </div>
             {run.errors.length > 0 && (
-              <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
+              <ul className="mt-1 list-disc pl-5 text-body-small text-error">
                 {run.errors.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             )}
           </div>
-        ) : <p className="text-sm text-gray-600">No runs yet.</p>}
+        ) : <p className="text-body-medium text-on-surface-variant">No runs yet.</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <div className="card"><div className="text-xs text-gray-500">Pending</div><div className="text-2xl font-semibold">{counts.pending}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Accepted</div><div className="text-2xl font-semibold">{counts.accepted}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Rejected</div><div className="text-2xl font-semibold">{counts.rejected}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Acceptance rate</div><div className="text-2xl font-semibold">{rate}</div></div>
-        <div className="card"><div className="text-xs text-gray-500">Filtered out by Claude</div><div className="text-2xl font-semibold">{counts.filtered}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Pending</div><div className="text-headline-small">{counts.pending}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Accepted</div><div className="text-headline-small">{counts.accepted}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Rejected</div><div className="text-headline-small">{counts.rejected}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Acceptance rate</div><div className="text-headline-small">{rate}</div></div>
+        <div className="card"><div className="text-body-small text-on-surface-variant">Filtered out by Claude</div><div className="text-headline-small">{counts.filtered}</div></div>
       </div>
 
-      <nav className="flex flex-wrap gap-2 text-sm" aria-label="Candidate status">
+      <nav className="tabs" aria-label="Candidate status">
         {TABS.map((t) => (
-          <Link key={t.id} href={`/discovery?status=${t.id}`} className={`btn ${t.id === tab.id ? 'btn-primary' : ''}`} aria-current={t.id === tab.id ? 'page' : undefined}>
+          <Link key={t.id} href={`/discovery?status=${t.id}`} className="tab" aria-current={t.id === tab.id ? 'page' : undefined}>
             {t.name} ({counts[t.id]})
           </Link>
         ))}
       </nav>
 
       {tab.id === 'pending' && candidates.length > 0 && (
-        <p className="text-xs text-gray-500">Sorted Melbourne first, then rest of Australia, then location unknown.</p>
+        <p className="text-body-small text-on-surface-variant">Sorted Melbourne first, then rest of Australia, then location unknown.</p>
       )}
 
       {candidates.length === 0 ? (
-        <div className="card text-center text-gray-600">{tab.empty}</div>
+        <div className="card text-center text-on-surface-variant">{tab.empty}</div>
       ) : (
         <div className="space-y-3">
           {candidates.map((c) => (
             <div key={c.id} className="card space-y-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <a href={c.url} target="_blank" rel="noopener noreferrer" className="link font-medium">{c.headline}</a>
+                <a href={c.url} target="_blank" rel="noopener noreferrer" className="link text-title-small">{c.headline}</a>
                 <div className="flex flex-wrap gap-1">
-                  {c.is_roundup && <span className="badge bg-purple-100 text-purple-800">Roundup — open to review</span>}
-                  {c.signal_type && <span className="badge bg-gray-100 text-gray-800">{label(c.signal_type)}</span>}
+                  {c.is_roundup && <span className="badge bg-secondary-container text-on-secondary-container">Roundup — open to review</span>}
+                  {c.signal_type && <span className="badge bg-surface-container-high text-on-surface">{label(c.signal_type)}</span>}
                   <span className={`badge ${LOC_CLASS[c.location_match]}`}>{label(c.location_match)}</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-body-small text-on-surface-variant">
                 {[c.publisher, fmtDate(c.published_at)].filter((x) => x && x !== '—').join(' · ')}
                 {c.query && (
-                  <span className="badge ml-1 bg-gray-100 text-gray-700">{c.origin_type === 'rss' ? `RSS: ${c.query}` : `Search: ${c.query}`}</span>
+                  <span className="badge ml-1 bg-surface-container-high text-on-surface-variant">{c.origin_type === 'rss' ? `RSS: ${c.query}` : `Search: ${c.query}`}</span>
                 )}
               </div>
               {(c.company_name || c.est_headcount != null) && (
-                <div className="text-sm">
-                  {c.company_name && <span className="font-medium">{c.company_name}</span>}
-                  {c.company_domain && <span className="text-gray-500"> ({c.company_domain})</span>}
-                  {(c.city || c.state) && <span className="text-gray-500"> · {[c.city, c.state].filter(Boolean).join(', ')}</span>}
-                  {c.est_headcount != null && <span className="text-gray-500"> · ~{c.est_headcount} staff</span>}
+                <div className="text-body-medium">
+                  {c.company_name && <span className="text-title-small">{c.company_name}</span>}
+                  {c.company_domain && <span className="text-on-surface-variant"> ({c.company_domain})</span>}
+                  {(c.city || c.state) && <span className="text-on-surface-variant"> · {[c.city, c.state].filter(Boolean).join(', ')}</span>}
+                  {c.est_headcount != null && <span className="text-on-surface-variant"> · ~{c.est_headcount} staff</span>}
                 </div>
               )}
-              <p className="text-sm">{c.summary}</p>
+              <p className="text-body-medium">{c.summary}</p>
               {c.people.length > 0 && (
-                <div className="text-sm">
-                  <div className="text-xs font-medium text-gray-500">People named</div>
+                <div className="text-body-medium">
+                  <div className="text-label-medium text-on-surface-variant">People named</div>
                   <ul className="space-y-0.5">
                     {c.people.map((p, i) => (
                       <li key={i} className="flex flex-wrap items-center gap-x-2">
                         <span>{p.name}{p.title ? ` — ${p.title}` : ''} ({label(p.role)})</span>
-                        <a href={linkedInPeopleSearchUrl(c.company_name ?? '', p.name)} target="_blank" rel="noopener noreferrer" className="link text-xs">Search LinkedIn</a>
+                        <a href={linkedInPeopleSearchUrl(c.company_name ?? '', p.name)} target="_blank" rel="noopener noreferrer" className="link text-body-small">Search LinkedIn</a>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
               {c.company_name && (
-                <div className="flex flex-wrap items-center gap-1 text-xs">
-                  <span className="text-gray-500">Who to look for:</span>
+                <div className="flex flex-wrap items-center gap-1 text-body-small">
+                  <span className="text-on-surface-variant">Who to look for:</span>
                   {buyerRoles(c.signal_type, { companyName: c.company_name }).map((role) => (
-                    <a key={role} href={linkedInPeopleSearchUrl(c.company_name as string, role)} target="_blank" rel="noopener noreferrer" className="badge bg-gray-100 text-gray-800">{role}</a>
+                    <a key={role} href={linkedInPeopleSearchUrl(c.company_name as string, role)} target="_blank" rel="noopener noreferrer" className="badge bg-surface-container-high text-on-surface">{role}</a>
                   ))}
                 </div>
               )}
-              {c.duplicate_of && <p className="text-xs text-gray-500">Merged into an earlier candidate; any new people were added to it.</p>}
-              {c.is_roundup && <p className="text-sm text-purple-800">Covers several organisations. Open the article and add the relevant ones as leads (New lead), then mark it reviewed.</p>}
-              {c.rationale && <p className="text-xs text-gray-500">{c.rationale}</p>}
-              {c.status === 'rejected' && c.reject_reason && <p className="text-xs text-gray-600">Rejected: {c.reject_reason}</p>}
+              {c.duplicate_of && <p className="text-body-small text-on-surface-variant">Merged into an earlier candidate; any new people were added to it.</p>}
+              {c.is_roundup && <p className="text-body-medium text-on-surface-variant">Covers several organisations. Open the article and add the relevant ones as leads (New lead), then mark it reviewed.</p>}
+              {c.rationale && <p className="text-body-small text-on-surface-variant">{c.rationale}</p>}
+              {c.status === 'rejected' && c.reject_reason && <p className="text-body-small text-on-surface-variant">Rejected: {c.reject_reason}</p>}
 
               <div className="flex flex-wrap items-center gap-2">
                 {c.status === 'pending' && c.is_roundup && (
@@ -189,7 +189,7 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                     <form action={rejectCandidate}>
                       <input type="hidden" name="candidate_id" value={c.id} />
                       <input type="hidden" name="reason" value="Roundup reviewed" />
-                      <button type="submit" className="btn">Mark reviewed</button>
+                      <button type="submit" className="btn btn-tonal">Mark reviewed</button>
                     </form>
                   </>
                 )}
@@ -199,19 +199,19 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
                       <input type="hidden" name="candidate_id" value={c.id} />
                       <button type="submit" className="btn btn-primary">Accept</button>
                     </form>
-                    <form action={rejectCandidate} className="flex flex-wrap gap-2">
+                    <form action={rejectCandidate} className="flex min-w-[16rem] flex-1 items-center gap-2">
                       <input type="hidden" name="candidate_id" value={c.id} />
-                      <input name="reason" placeholder="Reason (optional)" className="input" aria-label="Reject reason" />
+                      <input name="reason" placeholder="Reason (optional)" className="input min-w-0 flex-1" aria-label="Reject reason" />
                       <button type="submit" className="btn">Reject</button>
                     </form>
                   </>
                 )}
-                {c.status === 'accepted' && c.lead_id && <Link href={`/leads/${c.lead_id}`} className="link text-sm">View lead</Link>}
+                {c.status === 'accepted' && c.lead_id && <Link href={`/leads/${c.lead_id}`} className="link text-body-medium">View lead</Link>}
                 {(c.status === 'rejected' || c.status === 'filtered') && (
                   <>
                     <form action={restoreCandidate}>
                       <input type="hidden" name="candidate_id" value={c.id} />
-                      <button type="submit" className="btn">Restore to pending</button>
+                      <button type="submit" className="btn btn-tonal">Restore to pending</button>
                     </form>
                     {c.status === 'filtered' && !c.is_roundup && (
                       <form action={acceptCandidate}>
@@ -228,34 +228,34 @@ async function DiscoveryContent({ searchParams }: { searchParams: Promise<SP> })
       )}
 
       <details className="card">
-        <summary className="cursor-pointer text-sm font-medium">Feeds ({settings.discovery_feeds.length})</summary>
+        <summary className="cursor-pointer text-title-small">Feeds ({settings.discovery_feeds.length})</summary>
         <form action={saveDiscoveryFeeds} className="mt-3 space-y-2">
-          <textarea name="feeds" rows={8} defaultValue={settings.discovery_feeds.map((f) => `${f.name} | ${f.url}`).join('\n')} className="input w-full font-mono text-xs" aria-label="Feeds, one per line as Name | URL" />
-          <p className="text-xs text-gray-500">One per line: Name | https://url (or just a URL; max 30). Checked every run. Free.</p>
-          <button type="submit" className="btn btn-primary">Save feeds</button>
+          <textarea name="feeds" rows={8} defaultValue={settings.discovery_feeds.map((f) => `${f.name} | ${f.url}`).join('\n')} className="input w-full font-mono text-body-small" aria-label="Feeds, one per line as Name | URL" />
+          <p className="text-body-small text-on-surface-variant">One per line: Name | https://url (or just a URL; max 30). Checked every run. Free.</p>
+          <button type="submit" className="btn btn-tonal">Save feeds</button>
         </form>
         <form action={saveFeedMaxItems} className="mt-4 flex flex-wrap items-center gap-2">
-          <label htmlFor="max_items" className="text-sm">Max items per feed per run</label>
+          <label htmlFor="max_items" className="text-body-medium">Max items per feed per run</label>
           <input id="max_items" name="max_items" type="number" min={1} max={50} step={1} defaultValue={settings.discovery_feed_max_items} className="input w-20" />
-          <button type="submit" className="btn">Save</button>
+          <button type="submit" className="btn btn-tonal">Save</button>
         </form>
       </details>
 
       <details className="card">
-        <summary className="cursor-pointer text-sm font-medium">Feed keywords ({settings.discovery_keywords.length})</summary>
+        <summary className="cursor-pointer text-title-small">Feed keywords ({settings.discovery_keywords.length})</summary>
         <form action={saveDiscoveryKeywords} className="mt-3 space-y-2">
-          <textarea name="keywords" rows={6} defaultValue={settings.discovery_keywords.join('\n')} className="input w-full font-mono text-xs" aria-label="Feed keywords, one per line" />
-          <p className="text-xs text-gray-500">One per line or comma-separated (max 60). Feed items must contain one of these words before Claude reads them — keeps cost down.</p>
-          <button type="submit" className="btn btn-primary">Save keywords</button>
+          <textarea name="keywords" rows={6} defaultValue={settings.discovery_keywords.join('\n')} className="input w-full font-mono text-body-small" aria-label="Feed keywords, one per line" />
+          <p className="text-body-small text-on-surface-variant">One per line or comma-separated (max 60). Feed items must contain one of these words before Claude reads them — keeps cost down.</p>
+          <button type="submit" className="btn btn-tonal">Save keywords</button>
         </form>
       </details>
 
       <details className="card">
-        <summary className="cursor-pointer text-sm font-medium">Search queries ({settings.discovery_queries.length})</summary>
+        <summary className="cursor-pointer text-title-small">Search queries ({settings.discovery_queries.length})</summary>
         <form action={saveDiscoveryQueries} className="mt-3 space-y-2">
-          <textarea name="queries" rows={8} defaultValue={settings.discovery_queries.join('\n')} className="input w-full font-mono text-xs" aria-label="Search queries, one per line" />
-          <p className="text-xs text-gray-500">Used by Search news. Each query is one web search (US$0.01). One per line (max 20; a run uses the first 15).</p>
-          <button type="submit" className="btn btn-primary">Save queries</button>
+          <textarea name="queries" rows={8} defaultValue={settings.discovery_queries.join('\n')} className="input w-full font-mono text-body-small" aria-label="Search queries, one per line" />
+          <p className="text-body-small text-on-surface-variant">Used by Search news. Each query is one web search (US$0.01). One per line (max 20; a run uses the first 15).</p>
+          <button type="submit" className="btn btn-tonal">Save queries</button>
         </form>
       </details>
     </div>

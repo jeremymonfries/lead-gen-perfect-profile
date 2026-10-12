@@ -16,7 +16,7 @@ const Num = ({ name, children, value, step }: { name: string; children: string; 
 export default function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">Settings</h1>
+      <h1 className="text-headline-small">Settings</h1>
       <Suspense fallback={<SettingsSkeleton />}>
         <SettingsContent searchParams={searchParams} />
       </Suspense>
@@ -27,7 +27,7 @@ export default function SettingsPage({ searchParams }: { searchParams: Promise<{
 function SettingsSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading settings">
-      {Array.from({ length: 5 }, (_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+      {Array.from({ length: 5 }, (_, i) => <div key={i} className="card h-24 animate-pulse bg-surface-container-high" />)}
     </div>
   );
 }
@@ -41,12 +41,12 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
   return (
     <div className="space-y-4">
       {savedCount !== null && (
-        <div role="status" className="rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
+        <div role="status" className="banner banner-success">
           Saved — {savedCount} {savedCount === 1 ? 'lead' : 'leads'} rescored
         </div>
       )}
       {s.price_per_head == null && (
-        <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="banner banner-warning">
           Pricing is unconfirmed (price per head is blank). Lead values use the headcount proxy below; unknown values are never invented.
         </div>
       )}
@@ -65,8 +65,8 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
               {LLM_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           </div>
-          <p className="col-span-full text-sm text-gray-600">Discovery runs and website lookups are frequent, so a cheap model is recommended. Set a monthly spend limit in the Anthropic Console too.</p>
-          <p className="col-span-full text-sm font-medium">
+          <p className="col-span-full text-body-medium text-on-surface-variant">Discovery runs and website lookups are frequent, so a cheap model is recommended. Set a monthly spend limit in the Anthropic Console too.</p>
+          <p className="col-span-full text-title-small">
             This month: {fmtUsd(usage.total)} (discovery {fmtUsd(usage.byJob.discovery)}, website lookups {fmtUsd(usage.byJob.website)}, drafts {fmtUsd(usage.byJob.draft)}; {usage.calls} {usage.calls === 1 ? 'call' : 'calls'})
           </p>
         </section>
@@ -110,8 +110,8 @@ async function SettingsContent({ searchParams }: { searchParams: Promise<{ saved
       </form>
       <section className="card space-y-2">
         <h2>Backup</h2>
-        <a href="/api/backup" className="btn" download>Download backup</a>
-        <p className="text-sm text-gray-600">
+        <a href="/api/backup" className="btn btn-tonal" download>Download backup</a>
+        <p className="text-body-medium text-on-surface-variant">
           Downloads all your leads, contacts, activity and discovery data as a file. Keep it somewhere safe (e.g. iCloud Drive).
           For a full database backup, double-click “Back up Perfect Profile” in the project folder.
         </p>

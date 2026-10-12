@@ -10,16 +10,14 @@ export default function LoginForm() {
   const pending = inPending || upPending;
   return (
     <form className="flex flex-col gap-3">
-      <input name="email" type="email" required autoComplete="email" placeholder="Email"
-        className="rounded border border-gray-300 px-3 py-2" />
-      <input name="password" type="password" required minLength={6} autoComplete="current-password" placeholder="Password"
-        className="rounded border border-gray-300 px-3 py-2" />
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {state?.message && <p className="text-sm text-green-700">{state.message}</p>}
-      <button formAction={inAction} disabled={pending}
-        className="rounded bg-black px-3 py-2 text-white disabled:opacity-50">Sign in</button>
-      <button formAction={upAction} disabled={pending}
-        className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50">Sign up</button>
+      <input name="email" type="email" required autoComplete="email" placeholder="Email" aria-label="Email"
+        className="input" />
+      <input name="password" type="password" required minLength={6} autoComplete="current-password" placeholder="Password" aria-label="Password"
+        className="input" />
+      {state?.error && <p className="banner banner-error" role="alert">{state.error}</p>}
+      {state?.message && <p className="banner banner-success" role="status">{state.message}</p>}
+      <button formAction={inAction} disabled={pending} className="btn btn-primary">Sign in</button>
+      <button formAction={upAction} disabled={pending} className="btn">Sign up</button>
     </form>
   );
 }
